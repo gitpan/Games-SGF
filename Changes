@@ -1,5 +1,9 @@
 Revision history for Games-SGF
 
-0.01    Date/time
+0.01    3/18/2008
         First version, released on an unsuspecting world.
 
+0.02    3/19/2008
+        Added t/copy.t and fixed some bugs which it exposed
+        Removed t/boilerplate.t
+        Added t/addon.t and fixed some bugs which it exposed

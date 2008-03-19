@@ -6,4 +6,7 @@ lib/Games/SGF.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
+t/copy.t
+t/addon.t
+t/sgf_test.pm
 META.yml                                 Module meta-data (added by MakeMaker)

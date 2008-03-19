@@ -7,7 +7,7 @@ use enum qw(
          :C_=1 BLACK WHITE
          :DBL_=1 NORM EMPH
          :V_=1 NONE NUMBER REAL DOUBLE COLOR SIMPLE_TEXT TEXT POINT MOVE STONE
-         :BITMASK :VF_=1 EMPTY LIST OPT_COMPOSE
+         BITMASK:VF_=1 EMPTY LIST OPT_COMPOSE
          :T_=1 MOVE SETUP ROOT GAME_INFO NONE
          :A_=1 NONE INHERIT
          );
@@ -23,8 +23,8 @@ Version 0.01 first release
 =cut
 
 
-our $DEBUG = 1;
-our $VERSION = 0.01;
+our $DEBUG = 0;
+our $VERSION = 0.02;
 our $errstr;
 
 my( %ff4_properties ) = (
@@ -86,7 +86,7 @@ my( %ff4_properties ) = (
    'V' => { 'type' => T_NONE, 'value' => V_REAL },
 
    # general root properties
-   'AP' => { 'type' => T_ROOT, 'value' => [V_SIMPLE_TEXT, V_NUMBER] },
+   'AP' => { 'type' => T_ROOT, 'value' => [V_SIMPLE_TEXT, V_SIMPLE_TEXT] },
    'CA' => { 'type' => T_ROOT, 'value' => V_SIMPLE_TEXT },
    'FF' => { 'type' => T_ROOT, 'value' => V_NUMBER },
    'GM' => { 'type' => T_ROOT, 'value' => V_NUMBER },
@@ -261,19 +261,11 @@ sub _write_tags {
       } else {
          foreach my $val( @values ) {
             $text .= "[";
-
+            # _type* take care of composed values now
             # add value
-            if( $self->_maybeComposed($tag) and ref $val eq 'ARRAY' ) {
-               my $val1 = $self->_typeWrite($tag,0,$val->[0]);
-               return undef if not defined $val1;
-               my $val2 = $self->_typeWrite($tag,1,$val->[1]);
-               return undef if not defined $val2;
-               $text .= $val1. ":" . $val2;
-            } else {
-               my $val = $self->_typeWrite($tag,0,$val);
-               return undef if not defined $val;
-               $text .= $self->_typeWrite($tag,0,$val);
-            }
+            my $val = $self->_typeWrite($tag,0,$val);
+            return undef if not defined $val;
+            $text .= $val;
             $text .= "]"
          }
          $text .= "\n"; # add some white space to make it easier to read
@@ -658,7 +650,9 @@ sub next {
    my $self = shift;
    my $branch = $self->_getBranch;
 
-   if( $self->{'node'} < @{$branch->[0]} - 1 ) {
+   if( $self->{'node'} > @{$branch->[0]} ) {
+      $errstr = "Last Node in branch sequence " . $self->{'node'}
+         . " out of " . scalar @{$branch->[0]};
       return 0;
    } else {
       $self->{'node'}++;
@@ -716,9 +710,11 @@ sub gotoVariation {
    my $n = shift;
    my $branch = $self->_getBranch;
    if( $n >= @{$branch->[1]} ) {
+      $errstr = "Can't goto variation greater then number on branch";
       return 0;
    } else {
       push @{$self->{'parents'}}, $branch->[1]->[$n];
+      $self->{'node'} = 0;
       return 1;
    }
 }
@@ -956,8 +952,9 @@ sub getProperty {
             $closest = $_;
          }
       }
-      if( $closest == undef ) {
+      if( defined $closest ) {
          # none found
+         $errstr = "Inherited tag($tag) not found";
          return 0;
       } elsif( $closest == $branch )  {
          # find greatest node less then or equal to $self->{'node'}
@@ -967,6 +964,7 @@ sub getProperty {
                return $self->{'inherited'}->{$closest}->{$n}->{$tag};
             }
          }
+         $errstr = "inherited $tag not found in current branch";
          return 0;
       } else {
          # find greastest node
@@ -977,6 +975,7 @@ sub getProperty {
          if( $max > 0 ) {
             return $self->{$closest}->{$max}->{$tag};
          } else {
+            $errstr = "inherited $tag not found";
             return 0;
          }
       }
@@ -985,6 +984,7 @@ sub getProperty {
          return $node->{$tag};
       } else {
          # non existent $tag
+         $errstr = "non existent $tag";
          return 0;
       }
    }
@@ -1034,11 +1034,12 @@ sub setProperty {
    my $vtype = $self->_getTagValueType($tag);
    my $flags = $self->_getTagFlags($tag);
    my $attri = $self->_getTagAttribute($tag);
-
+   my $isComposable = $self->_maybeComposed($tag);
+_debug( "In Set Prop\n");
    # reasons to not set the property
    # set list values only if VF_LIST
-   if( @values > 1 and not $vtype & VF_LIST ) {
-      $errstr = "Can't set list for non VF_LIST: ($tag)\n";
+   if( @values > 1 and not $flags & VF_LIST ) {
+      $errstr = "Can't set list for non VF_LIST: ($tag, $flags : " . join( ":", VF_EMPTY, VF_LIST, VF_OPT_COMPOSE) . ")\n";
       return 0;
    }
    # can set T_ROOT if you are at root
@@ -1064,13 +1065,26 @@ sub setProperty {
       }
    }
    # don't set invalid structures
-   if( $isUnSet ) {
+   if(not  $isUnSet ) {
       foreach( @values ) {
          # check compose
-         unless( $self->_typeCheck($tag,0,$_) ) {
-            # check failed
-            $errstr .= "Check Failed";
-            return 0;
+         if( $self->isComposed($_) ) {
+            unless( $isComposable ) {
+               $errstr = "Found Composed value when $tag does not allow it";
+               return 0;
+            }
+            my( $v1, $v2 ) = $self->compose($_);
+            unless( $self->_typeCheck($tag,0,$v1) 
+                  and $self->_typeCheck($tag,1,$v2) ) {
+               $errstr = "Check Failed";
+               return 0;
+            }
+         } else {
+            unless( $self->_typeCheck($tag,0,$_) ) {
+               # check failed
+               $errstr .= "Check Failed";
+               return 0;
+            }
          }
       }
    }
@@ -1105,6 +1119,47 @@ sub setProperty {
 
    return 1;
 }
+
+=head2 compose
+
+  ($pt1, $pt2) = $sgf->compose($compose);
+  $compose = $sgf->compose($pt1,$pt2);
+
+Used for creating and breaking apart composed values. If you will be setting
+or fetching a composed value you will be needing this function to breack it
+apart.
+
+=cut
+
+sub compose {
+   my $self = shift;
+   my $cop1 = shift;
+   if( $self->isComposed($cop1) ) {
+      return @$cop1;
+   } else {
+      my $cop2 = shift;
+      return bless [$cop1,$cop2], 'Games::SGF::compose';
+   }
+}
+
+=head2 isComposed
+
+  if( $sgf->isComposed($compose) ) {
+     ($val1, $val2) = $sgf->compose($compose);
+  }
+
+
+This returns true if the value passed in is a composed value, otherwise
+false.
+
+=cut
+
+sub isComposed {
+   my $self = shift;
+   my $val = shift;
+   return ref $val eq 'Games::SGF::compose';
+}
+
 sub _getBranch {
    my $self = shift;
    return $self->{'parents'}->[@{$self->{'parents'}} - 1 ];
@@ -1114,17 +1169,30 @@ sub _getNode {
    my $branch = $self->_getBranch();
    return $branch->[0]->[$self->{'node'}];
 }
-#TODO finish these and integrate them into the module
-#        _typeRead replaces _typeParse
-#           returns struct/parsed data
-#           on failure return undef and set errstr
-#        setProperty uses _typeCheck
-#        _write will use _typeWrite
+
+# adjust _typeRead so that if it gets a compose
+# it will break it into two calls to itself
+#
+# same with _typeCheck
+#
+# have write automaticly put the ':' in place
+
+
+
 sub _typeRead {
    my $self = shift;
    my $tag = shift;
    my $isSecond = shift;
    my $text = shift;
+
+   # composed
+   if( $self->isComposed($text) ) {
+      my( @val ) = $self->compose($text);
+      $val[0] = $self->_typeRead($tag,0,$val[0]);
+      $val[1] = $self->_typeRead($tag,1,$val[1]);
+      return $self->compose(@val);
+   }
+
    my $type = $self->_getTagValueType($tag);
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
@@ -1173,7 +1241,7 @@ sub _typeRead {
       if( $text ) {
          croak "Invalid NONE: '$text'";
       } else {
-         return undef;
+         return "";
       }
    # game specific
    } elsif( $type == V_POINT ) {
@@ -1182,11 +1250,11 @@ sub _typeRead {
          return $self->{'pointRead'}->($text);
       } 
    } elsif( $type == V_STONE ) {
-      if($self->{'stoneSub'}) {
+      if($self->{'stoneRead'}) {
          return $self->{'stoneRead'}->($text);
       }
    } elsif( $type == V_MOVE ) {
-      if($self->{'moveSub'}) {
+      if($self->{'moveRead'}) {
          return $self->{'moveRead'}->($text);
       }
    } else {
@@ -1197,11 +1265,22 @@ sub _typeRead {
 }
 # on V_TEXT and V_SIMPLE_TEXT auto escapes :, ], and \
 # there should be no need to worry abour composed escaping
+#
+# adjust to check composed values?
 sub _typeCheck {
    my $self = shift;
    my $tag = shift;
    my $isSecond = shift;
    my $struct = shift;
+
+   # composed
+   if( $self->isComposed($struct) ) {
+      my( @val ) = $self->compose($struct);
+      $val[0] = $self->_typeCheck($tag,0,$val[0]);
+      $val[1] = $self->_typeCheck($tag,1,$val[1]);
+      return $val[0] && $val[1];
+   }
+
    my $type = $self->_getTagValueType($tag);
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
@@ -1267,6 +1346,15 @@ sub _typeWrite {
    my $tag = shift;
    my $isSecond = shift;
    my $struct = shift;
+
+   # composed
+   if( $self->isComposed($struct) ) {
+      my( @val ) = $self->compose($struct);
+      $val[0] = $self->_typeWrite($tag,0,$val[0]);
+      $val[1] = $self->_typeWrite($tag,1,$val[1]);
+      return join ':', @val;
+   }
+
    my $type = $self->_getTagValueType($tag);
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
@@ -1296,14 +1384,10 @@ sub _typeWrite {
    } elsif( $type == V_REAL ) {
       return sprintf( "%f", $struct);
    } elsif( $type == V_TEXT ) {
-      $struct =~ s/:/\\:/sg;
-      $struct =~ s/]/\\]/sg;
-      $struct =~ s/\\/\\\\/sg;
+      $struct =~ s/([:\]\\])/\\$1/sg;
       return $struct;
    } elsif( $type == V_SIMPLE_TEXT ) {
-      $struct =~ s/:/\\:/sg;
-      $struct =~ s/]/\\]/sg;
-      $struct =~ s/\\/\\\\/sg;
+      $struct =~ s/([:\]\\])/\\$1/sg;
       return $struct;
    } elsif( $type == V_NONE ) {
       return "";
@@ -1334,54 +1418,60 @@ sub _getTagFlags {
    my $self = shift;
    my $tag = shift;
    if( exists $ff4_properties{$tag} ) {
-      return 0 unless exists $ff4_properties{$tag}->{'value_flags'};
-      return $ff4_properties{$tag}->{'value_flags'};
+      if( $ff4_properties{$tag}->{'value_flags'} ) {
+         return $ff4_properties{$tag}->{'value_flags'};
+      }
    } elsif( exists $self->{'tags'}->{$tag} ) {
-      return 0 unless exists $self->{'tags'}->{$tag}->{'value_flags'};
-      return $self->{'tags'}->{$tag}->{'value_flags'};
-   } else {
-      carp "Tag '$tag' Not Found\n";
-      return (VF_EMPTY | VF_LIST); # allow to be empty or list
+      if( $self->{'tags'}->{$tag}->{'value_flags'} ) {
+         return $self->{'tags'}->{$tag}->{'value_flags'};
+      }
    }
+   #carp "Tag '$tag' Not Found\n";
+   # default flags
+   return (VF_EMPTY | VF_LIST); # allow to be empty or list
 }
 sub _getTagType {
    my $self = shift;
    my $tag = shift;
    if( exists $ff4_properties{$tag} ) {
-      return T_NONE unless exists $ff4_properties{$tag}->{'type'};
-      return $ff4_properties{$tag}->{'type'};
+      if( $ff4_properties{$tag}->{'type'} ) {
+         return $ff4_properties{$tag}->{'type'};
+      }
    } elsif( exists $self->{'tags'}->{$tag} ) {
-      return T_NONE unless exists $self->{'tags'}->{$tag}->{'type'};
-      return $self->{'tags'}->{$tag}->{'type'};
-   } else {
-      return T_NONE; # allow to be anywhere
+      if( $self->{'tags'}->{$tag}->{'type'} ) {
+         return $self->{'tags'}->{$tag}->{'type'};
+      }
    }
+   # default Type
+   return T_NONE; # allow to be anywhere
 }
 sub _getTagAttribute {
    my $self = shift;
    my $tag = shift;
    if( exists $ff4_properties{$tag} ) {
-      return A_NONE unless exists $ff4_properties{$tag}->{'attrib'};
-      return $ff4_properties{$tag}->{'attrib'};
+      if( $ff4_properties{$tag}->{'attrib'} ) {
+         return $ff4_properties{$tag}->{'attrib'};
+      }
    } elsif( exists $self->{'tags'}->{$tag} ) {
-      return A_NONE unless exists $self->{'tags'}->{$tag}->{'attrib'};
-      return $self->{'tags'}->{$tag}->{'attrib'};
-   } else {
-      return A_NONE; # don't set inherit
+      if( $self->{'tags'}->{$tag}->{'attrib'} ) {
+         return $self->{'tags'}->{$tag}->{'attrib'};
+      }
    }
+   return A_NONE; # don't set inherit
 }
 sub _getTagValueType {
    my $self = shift;
    my $tag = shift;
    if( exists $ff4_properties{$tag} ) {
-      return V_TEXT unless exists $ff4_properties{$tag}->{'value'};
-      return $ff4_properties{$tag}->{'value'};
+      if( $ff4_properties{$tag}->{'value'} ) {
+         return $ff4_properties{$tag}->{'value'};
+      }
    } elsif( exists $self->{'tags'}->{$tag} ) {
-      return V_TEXT unless exists $self->{'tags'}->{$tag}->{'value'};
-      return $self->{'tags'}->{$tag}->{'value'};
-   } else {
-      return V_TEXT; # allows and preserves any string
+      if( $self->{'tags'}->{$tag}->{'value'} ) {
+         return $self->{'tags'}->{$tag}->{'value'};
+      }
    }
+   return V_TEXT; # allows and preserves any string
 }
 sub _maybeComposed {
    my $self = shift;
@@ -1469,10 +1559,25 @@ sub _read {
    
             # note empty tag will be pushed on as an empty string
             # _typeread before adding to values
-            for( my $i = 0; $i < @propertyValue; $i++) {
-               $propertyValue[$i] = $self->_typeRead( $propertyName, $i, $propertyValue[$i]);
+            #for( my $i = 0; $i < @propertyValue; $i++) {
+            #   $propertyValue[$i] = $self->_typeRead( $propertyName, $i, $propertyValue[$i]);
+            #}
+            if( $propI > 0 ) {
+               my $val =  $self->_typeRead($propertyName, 0, $self->compose(@propertyValue));
+               if( defined $val ) {
+                  push @values, $val;
+               } else {
+                  return 0;
+               }
+            } else {
+               my $val =  $self->_typeRead($propertyName, 0, @propertyValue);
+               if(defined $val) {
+                  push @values, $val;
+               } else {
+                  return 0;
+               }
             }
-            push @values, $propI > 0 ? [@propertyValue] : $propertyValue[0];
+            #push @values, $propI > 0 ? $self->compose(@propertyValue) : $propertyValue[0];
    
             $lastName = $propertyName;
             $propertyName = '';
