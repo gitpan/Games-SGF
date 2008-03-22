@@ -7,3 +7,24 @@ Revision history for Games-SGF
         Added t/copy.t and fixed some bugs which it exposed
         Removed t/boilerplate.t
         Added t/addon.t and fixed some bugs which it exposed
+
+0.03    3/19/2008
+        Added t/sgf_test.pl For common test subs
+        Rewrote t/copy.t and t/addon.t in order to use t/sgf_test.pl
+        Fixed bug in _isSpaceRemovable, where it did not give $self
+           to _getTagType
+        Fixed handling of spaces in _read
+        Removed random _debug statements
+        Added Games::SGF::Go
+        Moved $errstr and $DEBUG to be encapsulated as {'errstr'} and {'debug'}
+
+        3/20/2008
+        Added t/go_test.t and t/sgf/go-1.sgf which it uses
+        Added err method to SGF.pm
+
+        3/21/2008
+        FIXED empty tag handling.
+        UPDATED the docs for the callbacks
+
+        3/22/2008
+        Added Pass move handling to Go.pm

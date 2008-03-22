@@ -15,7 +15,7 @@ sub sgf_func {
          return @return;
       } else {
          fail( "call $func - $name" );
-         diag( "Call Failed: " . $Games::SGF::errstr );
+         diag( "Call Failed: " . $sgf->{'errstr'} );
          return undef;
       }
    } else {
@@ -34,7 +34,7 @@ sub tag_eq {
       my $values = $sgf->property($t);
       if( not $values ) {
          fail( "$t - $name" );
-         diag( " Parser returned error: " . $Games::SGF::errstr);
+         diag( " Parser returned error: " . $sgf->{'errstr'});
          next TAG;
       }
       if( ref $tags{$t} eq 'ARRAY' ) {
@@ -101,13 +101,15 @@ sub isNumber {
    return $_[0] =~ /^[+-]?\d+\.?\d*$/;
 }
 sub sgf_ok {
+   my $sgf = shift;
    my $bool = shift;
    my $name = shift;
    if( $bool ) {
       pass( $name );
    } else {
       fail( $name );
-      diag( "Parser Error: " . $Games::SGF::errstr );
+      diag( "Parser Error: " . 
+         ($sgf->{'errstr'} ? $sgf->{'errstr'} : "none reported") );
    }
 }
 

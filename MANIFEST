@@ -3,10 +3,13 @@ MANIFEST
 Makefile.PL
 README
 lib/Games/SGF.pm
+lib/Games/SGF/Go.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
 t/copy.t
 t/addon.t
-t/sgf_test.pm
+t/sgf_test.pl
+t/sgf/go-1.sgf
+t/go-game.t
 META.yml                                 Module meta-data (added by MakeMaker)

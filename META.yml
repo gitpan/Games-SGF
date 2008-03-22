@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Games-SGF
-version:             0.02
+version:             0.03
 abstract:            A general SGF parser
 license:             ~
 author:              

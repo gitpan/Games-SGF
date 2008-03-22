@@ -1,6 +1,6 @@
 use Test::More tests => 15;                      # last test to print
 use Games::SGF;
-require 't/sgf_test.pm';
+require 't/sgf_test.pl';
 my $sgf_in = <<SGF;
 (;KM[5.00];W[df];B[aa];AW[ab][ac];CR[aa][ac:cd])
 SGF
@@ -11,15 +11,14 @@ my $parser = new Games::SGF();
 ok( $parser, "Create Parser Object" );
 
 # add tags to parsers
-sgf_ok( $parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
+sgf_ok( $parser, $parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
 # add point, stone, move callbacks
-sgf_ok( $parser->setStoneRead(\&parsepoint), "Add Stone Parse");
-sgf_ok( $parser->setMoveRead(\&parsepoint), "Add Move Parse");
-sgf_ok( $parser->setPointRead(\&parsepoint), "Add Point Parse");
+sgf_ok( $parser, $parser->setStoneRead(\&parsepoint), "Add Stone Parse");
+sgf_ok( $parser, $parser->setMoveRead(\&parsepoint), "Add Move Parse");
+sgf_ok( $parser, $parser->setPointRead(\&parsepoint), "Add Point Parse");
 
 # read in $sgf_in
-sgf_ok( $parser->readText($sgf_in));
-
+sgf_ok( $parser, $parser->readText($sgf_in));
 test_nav( $parser, "parse");
 
 sub parsepoint {

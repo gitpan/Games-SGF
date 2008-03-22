@@ -2,7 +2,7 @@ package Games::SGF;
 
 use strict;
 use warnings;
-use Carp;
+use Carp qw(carp croak confess);
 use enum qw( 
          :C_=1 BLACK WHITE
          :DBL_=1 NORM EMPH
@@ -18,15 +18,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.01 first release
+Version 0.03 Third Alpha Release
 
 =cut
 
 
-our $DEBUG = 0;
-our $VERSION = 0.02;
-our $errstr;
-
+our $VERSION = 0.03;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -172,13 +169,11 @@ sub new {
    # stores added tags
    $self->{'tags'} = {};
    # stores stone, point, move handling subroutines
-   $self->{'stoneSub'} = undef;
-   $self->{'pointSub'} = undef;
-   $self->{'moveSub'} = undef;
    $self->{'game'} = undef; 
    $self->{'collection'} = undef; 
    $self->{'parents'} = undef; 
-   $self->{'node'} = undef; 
+   $self->{'node'} = undef;
+   $self->{'debug'} = $opts{'debug'} || 0; 
    return bless $self, $class;
 }
 
@@ -195,7 +190,7 @@ sub readText {
    my $text = shift;
    if( not $self->_read($text) ) {
       # no games read error
-      # $errstr = "No Games read in by readText\n";
+      #$self->{'errstr'} = "No Games read in by readText\n";
       return undef;
    } else {
       $self->{'game'} = 0; # first branch
@@ -219,11 +214,11 @@ sub readFile {
    my $text;
    my $fh;
    if( not open $fh, "<", $filename ) {
-      $errstr =  "Failed to open File '$filename': $!\n";
+      $self->err( "Failed to open File '$filename': $!\n" );
       return undef;
    }
    if(read( $fh, $text, -s $filename) == 0 ) {
-      $errstr = "Failed to read File '$filename': $!\n";
+      $self->err( "Failed to read File '$filename': $!\n");
    }
    close $fh;
    return $self->readText($text) ;
@@ -321,7 +316,7 @@ sub writeFile {
    my $text;
    my $fh;
    if( not open $fh, ">", $filename ) {
-      $errstr =  "Failed to open File '$filename': $!\n";
+      $self->err( "Failed to open File '$filename': $!\n");
       return undef;
    }
    print $fh $self->writeText;
@@ -356,7 +351,7 @@ sub addTag {
    my $self = shift;
    my $tagname = shift;
    if( exists $self->{'tags'}->{$tagname} ) {
-      $errstr = "addTag( $tagname ); FAILED : $tagname already exists\n";
+      $self->err( "addTag( $tagname ); FAILED : $tagname already exists\n");
       return undef;
    }
    $self->{'tags'}->{$tagname}->{'type'} = shift;
@@ -378,7 +373,7 @@ sub setPointRead {
    if( ref $coderef eq 'CODE' ) {
       $self->{'pointRead'} = $coderef;
    } else {
-      $errstr = "Point Read subroutine was not a subroutine reference\n";
+      $self->err( "Point Read subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -394,7 +389,7 @@ sub setMoveRead {
    if( ref $coderef eq 'CODE' ) {
       $self->{'moveRead'} = $coderef;
    } else {
-      $errstr =  "Move Read subroutine was not a subroutine reference\n";
+      $self->err( "Move Read subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -421,6 +416,9 @@ possible example for a Go point callback:
 Note: that you should do more then this in practice, but it gets the
 across.
 
+If the value is an empty string and VF_RMPTY is set then the call back will
+not be called but return an empty string.
+
 =cut
 
 sub setStoneRead {
@@ -429,7 +427,7 @@ sub setStoneRead {
    if( ref $coderef eq 'CODE' ) {
       $self->{'stoneRead'} = $coderef;
    } else {
-      $errstr =  "Stone Read subroutine was not a subroutine reference\n";
+      $self->err( "Stone Read subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -447,7 +445,7 @@ sub setPointCheck {
    if( ref $coderef eq 'CODE' ) {
       $self->{'pointCheck'} = $coderef;
    } else {
-      $errstr =  "Point Check subroutine was not a subroutine reference\n";
+      $self->err( "Point Check subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -463,7 +461,7 @@ sub setMoveCheck {
    if( ref $coderef eq 'CODE' ) {
       $self->{'moveCheck'} = $coderef;
    } else {
-      $errstr =  "Move Check subroutine was not a subroutine reference\n";
+      $self->err( "Move Check subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -491,6 +489,9 @@ An Example of a stone check for go is as follows:
      }
   }
 
+If the value is an empty string it will be passed to the check callback
+only if VF_EMPTY is not set.
+
 =cut
 
 sub setStoneCheck {
@@ -499,7 +500,7 @@ sub setStoneCheck {
    if( ref $coderef eq 'CODE' ) {
       $self->{'stoneCheck'} = $coderef;
    } else {
-      $errstr =  "Stone Check subroutine was not a subroutine reference\n";
+      $self->err( "Stone Check subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -516,7 +517,7 @@ sub setPointWrite {
    if( ref $coderef eq 'CODE' ) {
       $self->{'pointWrite'} = $coderef;
    } else {
-      $errstr =  "Point Write subroutine was not a subroutine reference\n";
+      $self->err( "Point Write subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -532,7 +533,7 @@ sub setMoveWrite {
    if( ref $coderef eq 'CODE' ) {
       $self->{'moveWrite'} = $coderef;
    } else {
-      $errstr =  "Move Write subroutine was not a subroutine reference\n";
+      $self->err( "Move Write subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -556,6 +557,8 @@ An Example of a stone check for go is as follows:
      return $list[$stone->[0] - 1] . $list[$stone->[1] - 1];
   }
 
+If the tag value is an empty string it will not be sent to the write callback, but immedeitely be returned as an empty string.
+
 =cut
 
 sub setStoneWrite {
@@ -564,7 +567,7 @@ sub setStoneWrite {
    if( ref $coderef eq 'CODE' ) {
       $self->{'stoneWrite'} = $coderef;
    } else {
-      $errstr =  "Stone Write subroutine was not a subroutine reference\n";
+      $self->err( "Stone Write subroutine was not a subroutine reference\n");
       return undef;
    }
    return 1;
@@ -651,8 +654,8 @@ sub next {
    my $branch = $self->_getBranch;
 
    if( $self->{'node'} > @{$branch->[0]} ) {
-      $errstr = "Last Node in branch sequence " . $self->{'node'}
-         . " out of " . scalar @{$branch->[0]};
+      $self->err("Last Node in branch sequence " . $self->{'node'}
+         . " out of " . scalar @{$branch->[0]});
       return 0;
    } else {
       $self->{'node'}++;
@@ -710,7 +713,7 @@ sub gotoVariation {
    my $n = shift;
    my $branch = $self->_getBranch;
    if( $n >= @{$branch->[1]} ) {
-      $errstr = "Can't goto variation greater then number on branch";
+      $self->err("Can't goto variation greater then number on branch");
       return 0;
    } else {
       push @{$self->{'parents'}}, $branch->[1]->[$n];
@@ -759,7 +762,7 @@ sub addNode {
    my $branch = $self->_getBranch;
    my $node = {};
    if( @{$branch->[1]} ) {
-      $errstr = "Can't add Node since there exists a variation\n";
+      $self->err("Can't add Node since there exists a variation\n");
       return undef;
    }
    push @{$branch->[0]}, $node;
@@ -954,7 +957,7 @@ sub getProperty {
       }
       if( defined $closest ) {
          # none found
-         $errstr = "Inherited tag($tag) not found";
+         $self->err( "Inherited tag($tag) not found");
          return 0;
       } elsif( $closest == $branch )  {
          # find greatest node less then or equal to $self->{'node'}
@@ -964,7 +967,7 @@ sub getProperty {
                return $self->{'inherited'}->{$closest}->{$n}->{$tag};
             }
          }
-         $errstr = "inherited $tag not found in current branch";
+         $self->err( "inherited $tag not found in current branch");
          return 0;
       } else {
          # find greastest node
@@ -975,7 +978,7 @@ sub getProperty {
          if( $max > 0 ) {
             return $self->{$closest}->{$max}->{$tag};
          } else {
-            $errstr = "inherited $tag not found";
+            $self->err( "inherited $tag not found");
             return 0;
          }
       }
@@ -984,7 +987,7 @@ sub getProperty {
          return $node->{$tag};
       } else {
          # non existent $tag
-         $errstr = "non existent $tag";
+         $self->err( "non existent $tag");
          return 0;
       }
    }
@@ -1035,17 +1038,17 @@ sub setProperty {
    my $flags = $self->_getTagFlags($tag);
    my $attri = $self->_getTagAttribute($tag);
    my $isComposable = $self->_maybeComposed($tag);
-_debug( "In Set Prop\n");
    # reasons to not set the property
    # set list values only if VF_LIST
    if( @values > 1 and not $flags & VF_LIST ) {
-      $errstr = "Can't set list for non VF_LIST: ($tag, $flags : " . join( ":", VF_EMPTY, VF_LIST, VF_OPT_COMPOSE) . ")\n";
+      $self->err( "Can't set list for non VF_LIST: ($tag, $flags : " . join( ":", VF_EMPTY, VF_LIST, VF_OPT_COMPOSE) . ")\n");
       return 0;
    }
    # can set T_ROOT if you are at root
    if( $ttype == T_ROOT and  (@{$self->{'parents'}} != 1 or $self->{'node'} != 0) ) {
-      $errstr = "Can't set T_ROOT($tag) when not at root( Parents: "
-                  . scalar(@{$self->{'parents'}}) . " Node: " . $self->{'node'} . "\n";
+      $self->err( "Can't set T_ROOT($tag) when not at root( Parents: "
+                  . scalar(@{$self->{'parents'}}) . 
+                  " Node: " . $self->{'node'} . "\n");
       return 0;
    }
    # don't set T_MOVE or T_SETUP if other is present
@@ -1056,7 +1059,7 @@ _debug( "In Set Prop\n");
       if( $tnode ) {
          if( ($tnode == T_SETUP and $tag_type == T_MOVE)
                or ($tnode == T_MOVE and $tag_type == T_SETUP) ) {
-            $errstr = "Can't mix T_SETUP and T_MOVES\n";
+            $self->err("Can't mix T_SETUP and T_MOVES\n");
             return 0;
          } elsif( $tnode == undef
                and ($tag_type == T_MOVE or $tag_type == T_SETUP) ) {
@@ -1070,19 +1073,19 @@ _debug( "In Set Prop\n");
          # check compose
          if( $self->isComposed($_) ) {
             unless( $isComposable ) {
-               $errstr = "Found Composed value when $tag does not allow it";
+               $self->err( "Found Composed value when $tag does not allow it");
                return 0;
             }
             my( $v1, $v2 ) = $self->compose($_);
             unless( $self->_typeCheck($tag,0,$v1) 
                   and $self->_typeCheck($tag,1,$v2) ) {
-               $errstr = "Check Failed";
+               $self->err( "Check Failed");
                return 0;
             }
          } else {
             unless( $self->_typeCheck($tag,0,$_) ) {
                # check failed
-               $errstr .= "Check Failed";
+               $self->err( "Check Failed");
                return 0;
             }
          }
@@ -1091,13 +1094,13 @@ _debug( "In Set Prop\n");
    # can't unset inherited if unset
    if( $attri == A_INHERIT and $isUnSet 
          and not exists $self->{'inherited'}->{$branch}->{$node}->{$tag} ) {
-      $errstr = "Can't unset inherited $tag when not set at this node\n";
+      $self->err( "Can't unset inherited $tag when not set at this node\n");
       return 0;
    }
    # can't unset tag if unset
    if( $attri != A_INHERIT and $isUnSet 
          and not exists $node->{$tag} ) {
-      $errstr = "Can't unset non existant tag\n";
+      $self->err("Can't unset non existant tag\n");
       return 0;
    }
    # If I got here then it is safe to do some damage
@@ -1160,6 +1163,30 @@ sub isComposed {
    return ref $val eq 'Games::SGF::compose';
 }
 
+=head2 err
+
+  if( $sgf->err ) {
+     print $sgf->err;
+     return 0;
+  }
+
+  # This is for extending modules and internal use
+  $sgf->err( "Will set error message");
+
+Sets and fetchs the current error message.
+
+=cut
+
+sub err {
+   my $self = shift;
+   my $string = shift;
+   if( defined $string ) {
+      $self->{'errstr'} = $string;
+   } else {
+      return $self->{'errstr'};
+   }
+}
+
 sub _getBranch {
    my $self = shift;
    return $self->{'parents'}->[@{$self->{'parents'}} - 1 ];
@@ -1197,7 +1224,18 @@ sub _typeRead {
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
    }
-   _debug( "typeRead: ($tag, '$text')\n");
+
+   # if empty just return empty
+   if( $text eq "" ) {
+      if( $self->_getTagFlags($tag) & VF_EMPTY ) {
+         return "";
+      } elsif( not($type == V_POINT or $type == V_MOVE or $type == V_STONE ) ) {
+         $self->err(" Empty tag found where one should not be ");
+         return 0;
+      }
+   }
+
+   $self->_debug( "typeRead: ($tag, '$text')\n");
    #return $text unless $type;
    if($type == V_COLOR) {
       if( $text eq "B" ) {
@@ -1205,7 +1243,7 @@ sub _typeRead {
       } elsif( $text eq "W" ) {
          return C_WHITE;
       } else {
-         $errstr = "Invalid COLOR: '$text'";
+         $self->err("Invalid COLOR: '$text'");
          return undef;
       }
    } elsif( $type == V_DOUBLE ) {
@@ -1214,21 +1252,21 @@ sub _typeRead {
       } elsif( $text eq "2" ) {
          return DBL_EMPH;
       } else {
-         $errstr = "Invalid DOUBLE: '$text'";
+         $self->err( "Invalid DOUBLE: '$text'");
          return undef;
       }
    } elsif( $type == V_NUMBER) {
       if( $text =~ m/^[+-]?[0-9]+$/ ) {
          return $text;
       } else {
-         $errstr = "Invalid NUMBER: '$text'";
+         $self->err( "Invalid NUMBER: '$text'");
          return undef;
       }
    } elsif( $type == V_REAL ) {
       if( $text =~ m/^[+-]?[0-9]+(\.[0-9]+)?$/ ) {
          return $text;
       } else {
-         $errstr = "Invalid REAL: '$text'";
+         $self->err( "Invalid REAL: '$text'");
          return undef;
       }
    } elsif( $type == V_TEXT ) {
@@ -1258,7 +1296,7 @@ sub _typeRead {
          return $self->{'moveRead'}->($text);
       }
    } else {
-      $errstr = "Invalid type: $type\n";
+      $self->err( "Invalid type: $type\n");
       return undef;
    }
    return $text;
@@ -1285,7 +1323,20 @@ sub _typeCheck {
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
    }
-   _debug( "typeCheck: ($tag, '$struct')\n");
+
+   # if empty and VF_EMPTY return true unless point, move, or stone
+   if( $struct eq "" ) {
+      if( $self->_getTagFlags($tag) & VF_EMPTY ) {
+         # return empty if not move stone or point
+         return 1;
+      } elsif( not( $type == V_POINT or $type == V_MOVE or $type == V_STONE ) ) {
+         $self->err( "Check failed with invalid string($tag, $struct)");
+         return 0;
+      }
+   }
+
+
+   $self->_debug( "typeCheck: ($tag, '$struct')\n");
    if($type == V_COLOR) {
       if( $struct == C_BLACK or $struct == C_WHITE ) {
          return 1;
@@ -1335,7 +1386,7 @@ sub _typeCheck {
          return $self->{'moveCheck'}->($struct);
       }
    } else {
-      $errstr = "Invalid type: $type\n";
+      $self->err( "Invalid type: $type\n" );
       return undef;
    }
    # maybe game specific stuff shouldn't be pass through
@@ -1360,14 +1411,19 @@ sub _typeWrite {
       $type = $type->[$isSecond ? 1 : 0];
    }
    my $text;
-   _debug( "typeWrite: ($tag, '$struct')\n");
+   # if empty just return empty
+   if( $struct eq "" and $self->_getTagFlags($tag) & VF_EMPTY ) {
+      # if still empty it is ment to be empty
+      return "";
+   }
+   $self->_debug( "typeWrite: ($tag, '$struct')\n");
    if($type == V_COLOR) {
       if( $struct == C_BLACK ) {
          return "B";
       } elsif( $struct == C_WHITE ) {
          return "W";
       } else {
-         $errstr = "typeRead: value '$struct'\n";
+         $self->err( "typeRead: value '$struct'\n" );
          return undef;
       }
    } elsif( $type == V_DOUBLE ) {
@@ -1376,7 +1432,7 @@ sub _typeWrite {
       } elsif( $struct == DBL_EMPH ) {
          return "2";
       } else {
-         $errstr = "typeRead: Value '$struct'\n";
+         $self->err( "typeRead: Value '$struct'\n");
          return undef;
       }
    } elsif( $type == V_NUMBER) {
@@ -1404,7 +1460,7 @@ sub _typeWrite {
          return $self->{'moveWrite'}->($struct);
       }
    } else {
-      $errstr = "Invalid type: $type\n";
+      $self->err( "Invalid type: $type\n" );
       return undef;
    }
    return $struct;
@@ -1412,16 +1468,17 @@ sub _typeWrite {
 
 
 sub _debug {
-   print @_ if $DEBUG;
+   my $self = shift;
+   print @_ if $self->{'debug'};
 }
 sub _getTagFlags {
    my $self = shift;
    my $tag = shift;
-   if( exists $ff4_properties{$tag} ) {
+   if( exists( $ff4_properties{$tag}) ) {
       if( $ff4_properties{$tag}->{'value_flags'} ) {
          return $ff4_properties{$tag}->{'value_flags'};
       }
-   } elsif( exists $self->{'tags'}->{$tag} ) {
+   } elsif( exists( $self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'value_flags'} ) {
          return $self->{'tags'}->{$tag}->{'value_flags'};
       }
@@ -1433,11 +1490,11 @@ sub _getTagFlags {
 sub _getTagType {
    my $self = shift;
    my $tag = shift;
-   if( exists $ff4_properties{$tag} ) {
+   if( exists( $ff4_properties{$tag}) ) {
       if( $ff4_properties{$tag}->{'type'} ) {
          return $ff4_properties{$tag}->{'type'};
       }
-   } elsif( exists $self->{'tags'}->{$tag} ) {
+   } elsif( exists( $self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'type'} ) {
          return $self->{'tags'}->{$tag}->{'type'};
       }
@@ -1448,11 +1505,11 @@ sub _getTagType {
 sub _getTagAttribute {
    my $self = shift;
    my $tag = shift;
-   if( exists $ff4_properties{$tag} ) {
+   if( exists( $ff4_properties{$tag}) ) {
       if( $ff4_properties{$tag}->{'attrib'} ) {
          return $ff4_properties{$tag}->{'attrib'};
       }
-   } elsif( exists $self->{'tags'}->{$tag} ) {
+   } elsif( exists($self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'attrib'} ) {
          return $self->{'tags'}->{$tag}->{'attrib'};
       }
@@ -1462,11 +1519,11 @@ sub _getTagAttribute {
 sub _getTagValueType {
    my $self = shift;
    my $tag = shift;
-   if( exists $ff4_properties{$tag} ) {
+   if( exists( $ff4_properties{$tag}) ) {
       if( $ff4_properties{$tag}->{'value'} ) {
          return $ff4_properties{$tag}->{'value'};
       }
-   } elsif( exists $self->{'tags'}->{$tag} ) {
+   } elsif( exists( $self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'value'} ) {
          return $self->{'tags'}->{$tag}->{'value'};
       }
@@ -1487,7 +1544,7 @@ sub _isSpaceRemovable {
    my $self = shift;
    my $prop = shift;
    my $part = shift;
-   my $type = _getTagType($prop);
+   my $type = $self->_getTagType($prop);
    if( $self->_maybeComposed($prop) ) {
       if( ref $type eq 'ARRAY' ) {
          if( $type->[$part] == V_SIMPLE_TEXT ) {
@@ -1519,7 +1576,7 @@ sub _read {
    my $isStart = 0;
    my $isFirst = 0;
    my $inTree = 0;
-   _debug( "==SGF==\n\n$text\n==SGF==\n");
+   $self->_debug( "==SGF==\n\n$text\n==SGF==\n");
    # each gametree is a [\@sequence,\@gametress]
    for( my $i = 0; $i < length $text;$i++) {
       # ( start the game tree
@@ -1540,14 +1597,18 @@ sub _read {
             $isEscape = 1;
          } elsif( $char eq ':' and $self->_maybeComposed($propertyName)) {
             if($propI >= 1 ) {
-               $errstr =  "Too Many Compose components in value: FAILED";
+               $self->err( "Too Many Compose components in value: FAILED" );
                return undef;
             }
             $propI++;
             $propertyValue[$propI] = ""; # should be redundent
          } elsif( $char =~ /\s/ and $lastChar =~ /\s/
-               and $self->_isSpaceRemovable($propertyName) ) {
+               and $self->_isSpaceRemovable($propertyName, $propI) ) {
             # don't add anything
+         } elsif( $char =~ /\n/ 
+               and not $self->_isSpaceRemovable($propertyName,$propI) ) {
+            # makes sure newlines are saved when they are supposed to
+            $propertyValue[$propI] .= "\n";
          } elsif( $char =~ /\s/ ) {
             $propertyValue[$propI] .= " ";
          } elsif( $char eq ']' ) {
@@ -1555,7 +1616,7 @@ sub _read {
             unless( $inValue ) {
                croak "Mismatched ']' : FAILED";
             }
-            _debug( "Adding Property: '$propertyName' => '$propertyValue[$propI]'\n");
+            $self->_debug( "Adding Property: '$propertyName' => '$propertyValue[$propI]'\n");
    
             # note empty tag will be pushed on as an empty string
             # _typeread before adding to values
@@ -1595,12 +1656,12 @@ sub _read {
             @values = ();
          }
          if($inTree) {
-            _debug( "Starting GameTree\n");
+            $self->_debug( "Starting GameTree\n");
             if( not $self->addVariation ) {
                return undef;
             }
          } else {
-            _debug "Adding GameTree to Collection\n";
+            $self->_debug( "Adding GameTree to Collection\n");
             $inTree = 1;
             if( not $self->addGame ) {
                return undef;
@@ -1616,13 +1677,13 @@ sub _read {
             $inTree = 0;
          }
       } elsif( $char eq ';' ) {
-         _debug("Adding Node\n");
+         $self->_debug("Adding Node\n");
          if( @values ) {
             return undef if not $self->setProperty($lastName, @values); 
             @values = ();
          }
          if( not $inTree ) {
-            $errstr =  "Attempted to start node outside of GameTree: Failed";
+            $self->err( "Attempted to start node outside of GameTree: Failed" );
             return undef;
          }
          if( $isStart ) {
@@ -1853,11 +1914,18 @@ if it was not true.
 
 =back
 
-=head1 TODO
+=head1 TODO and KNOWN Problems
 
 =over
 
 =item Write Test Code
+
+=item Add methods for auto detecting gamemode, and FF[4]
+
+Could change the inheritance method to registering a class with a
+game mode.
+
+=item index Node names
 
 =back
 

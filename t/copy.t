@@ -1,7 +1,6 @@
 use Test::More tests => 71;                      # last test to print
 use Games::SGF;
-use Data::Dumper;
-require 't/sgf_test.pm';
+require 't/sgf_test.pl';
 
 my $sgf_in = <<SGF;
 (;GM[1]FF[4]AP[qGo:1.5.4]ST[1]
@@ -26,18 +25,17 @@ sgf_ok( $parser1, "Create Parser Object 1" );
 sgf_ok( $parser2, "Create Parser Object 2" );
 
 # add tags to parsers
-sgf_ok( $parser1->addTag('KM', $parser1->T_GAME_INFO, $parser1->V_REAL ), "addTag");
-sgf_ok( $parser2->addTag('KM', $parser2->T_GAME_INFO, $parser2->V_REAL ), "addTag");
+sgf_ok( $parser1, $parser1->addTag('KM', $parser1->T_GAME_INFO, $parser1->V_REAL ), "addTag");
+sgf_ok( $parser1, $parser2->addTag('KM', $parser2->T_GAME_INFO, $parser2->V_REAL ), "addTag");
 
 # read in $sgf_in
-sgf_ok( $parser1->readText($sgf_in), "Read Initial SGF Text");
-print Dumper $parser1;
+sgf_ok( $parser1, $parser1->readText($sgf_in), "Read Initial SGF Text");
 # write it back out
 my $sgf_out2 = $parser1->writeText;
-sgf_ok( $sgf_out2, "Write the parsed Tree");
+sgf_ok( $parser1, $sgf_out2, "Write the parsed Tree");
 
 # read it in the second parser
-sgf_ok( $parser2->readText($sgf_out2), "Read Second SGF Text");
+sgf_ok( $parser2, $parser2->readText($sgf_out2), "Read Second SGF Text");
 test_nav( $parser1, "parse1");
 test_nav( $parser2, "parse2");
 sub test_nav {
