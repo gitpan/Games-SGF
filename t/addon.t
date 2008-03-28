@@ -9,16 +9,26 @@ SGF
 my $parser = new Games::SGF();
 
 ok( $parser, "Create Parser Object" );
+diag( $parser->err ) if $parser->err;
 
 # add tags to parsers
-sgf_ok( $parser, $parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
+ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
+diag( $parser->err ) if $parser->err;
+
 # add point, stone, move callbacks
-sgf_ok( $parser, $parser->setStoneRead(\&parsepoint), "Add Stone Parse");
-sgf_ok( $parser, $parser->setMoveRead(\&parsepoint), "Add Move Parse");
-sgf_ok( $parser, $parser->setPointRead(\&parsepoint), "Add Point Parse");
+ok( $parser->setStoneRead(\&parsepoint), "Add Stone Parse");
+diag( $parser->err ) if $parser->err;
+
+ok( $parser->setMoveRead(\&parsepoint), "Add Move Parse");
+diag( $parser->err ) if $parser->err;
+
+ok( $parser->setPointRead(\&parsepoint), "Add Point Parse");
+diag( $parser->err ) if $parser->err;
+
 
 # read in $sgf_in
-sgf_ok( $parser, $parser->readText($sgf_in));
+ok( $parser->readText($sgf_in), "Read SGF");
+diag( $parser->err ) if $parser->err;
 test_nav( $parser, "parse");
 
 sub parsepoint {
@@ -34,16 +44,20 @@ sub test_nav {
    my $name = shift;
 
    tag_eq( $sgf, $name,
-      KM => 5 );
-   sgf_func($sgf, "next", $name);
+      KM => [5] );
+   ok($sgf->next, "next $name");
+   diag($sgf->err) if $sgf->err;
    tag_eq( $sgf, $name, W => [[3,5]] );
 
-   sgf_func($sgf, "next", $name);
+   ok($sgf->next, "next1 $name");
+   diag($sgf->err) if $sgf->err;
    tag_eq( $sgf, $name, B => [[0,0]] );
 
-   sgf_func($sgf, "next", $name);
+   ok($sgf->next, "next2 $name");
+   diag($sgf->err) if $sgf->err;
    tag_eq( $sgf, $name, AW => [[0,1],[0,2]] );
 
-   sgf_func($sgf, "next", $name);
+   ok($sgf->next, "next3 $name");
+   diag($sgf->err) if $sgf->err;
    tag_eq( $sgf, $name, CR => [[0,0],$sgf->compose([0,2],[2,3])] );
 }

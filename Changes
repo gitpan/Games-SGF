@@ -28,3 +28,11 @@ Revision history for Games-SGF
 
         3/22/2008
         Added Pass move handling to Go.pm
+
+0.04
+        3/27/2008
+        Changed enum requirement 1.016
+        Rewrote test scripts in order to deep test structures better
+        Added t/text.t for testing SIMPLE_TEXT and TEXT types
+        Fixed SIMPLE_TEXT and TEXT type handling
+        Fixed sgf_test.pl undef warnings

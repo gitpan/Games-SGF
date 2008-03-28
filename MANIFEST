@@ -12,4 +12,5 @@ t/addon.t
 t/sgf_test.pl
 t/sgf/go-1.sgf
 t/go-game.t
+t/text.t
 META.yml                                 Module meta-data (added by MakeMaker)

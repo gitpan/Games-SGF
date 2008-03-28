@@ -10,12 +10,12 @@ Games::SGF::GO - A Go Specific SGF Parser
 
 =head1 VERSION
 
-Version 0.01 Alpha Release
+Version 0.02 Alpha Release
 
 =cut
 
 our( @ISA ) = ('Games::SGF');
-our( $VERSION ) = 0.01;
+our( $VERSION ) = 0.02;
 
 =head1 SYNOPSIS
 

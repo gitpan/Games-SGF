@@ -2,6 +2,7 @@ package Games::SGF;
 
 use strict;
 use warnings;
+use Data::Dumper;
 use Carp qw(carp croak confess);
 use enum qw( 
          :C_=1 BLACK WHITE
@@ -18,12 +19,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.03 Third Alpha Release
+Version 0.04 Fourth Alpha Release
 
 =cut
 
 
-our $VERSION = 0.03;
+our $VERSION = 0.04;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -154,10 +155,21 @@ Also see: L<http://www.red-bean.com/sgf>
 
 =head2 new
 
-  new Games::SGF();
+  new Games::SGF(%options);
 
-Creates a SGF object, there may be options defined latter,
-but as of right now takes no paramaters.
+Creates a SGF object.
+
+Options that new will look at.
+
+=over
+
+=item debug
+
+  new Games::SGF(debug => 1);
+
+This will tell the SGF parser to spit out text as it parses.
+
+=back
 
 =cut
 
@@ -1540,18 +1552,46 @@ sub _maybeComposed {
       return 0;
    }
 }
-sub _isSpaceRemovable {
+sub _isSimpleText {
    my $self = shift;
    my $prop = shift;
    my $part = shift;
-   my $type = $self->_getTagType($prop);
+   my $type = $self->_getTagValueType($prop);
+   #carp "Tag($prop) VST: " . V_SIMPLE_TEXT . "\n" . Dumper $type;
    if( $self->_maybeComposed($prop) ) {
       if( ref $type eq 'ARRAY' ) {
          if( $type->[$part] == V_SIMPLE_TEXT ) {
+            #carp "Return 1?";
             return 1;
          }
+      } elsif( $type == V_SIMPLE_TEXT ) {
+         #carp "Return 1?";
+         return 1;
       }
    } elsif( $type == V_SIMPLE_TEXT ) {
+      #carp "Return 1?";
+      return 1;
+   }
+   return 0;
+}
+sub _isText {
+   my $self = shift;
+   my $prop = shift;
+   my $part = shift;
+   my $type = $self->_getTagValueType($prop);
+   #carp "Tag($prop) VT: " . V_TEXT . "\n" . Dumper $type;
+   if( $self->_maybeComposed($prop) ) {
+      if( ref $type eq 'ARRAY' ) {
+         if( $type->[$part] == V_TEXT ) {
+            #carp "Return 1?";
+            return 1;
+         }
+      } elsif( $type == V_TEXT ) {
+         #carp "Return 1?";
+         return 1;
+      }
+   } elsif( $type == V_TEXT ) {
+      #carp "Return 1?";
       return 1;
    }
    return 0;
@@ -1587,44 +1627,17 @@ sub _read {
       # a-Z not in [] are labels
       my $char = substr($text,$i,1);
       if( $inValue ) {
-         if( $isEscape ) {
-            if( $char eq '\n' ) {
-               $char = "";
-            }
-            $propertyValue[$propI] .= $char;
-            $isEscape = 0;
-         } elsif( $char eq '\\' ) {
-            $isEscape = 1;
-         } elsif( $char eq ':' and $self->_maybeComposed($propertyName)) {
-            if($propI >= 1 ) {
-               $self->err( "Too Many Compose components in value: FAILED" );
-               return undef;
-            }
-            $propI++;
-            $propertyValue[$propI] = ""; # should be redundent
-         } elsif( $char =~ /\s/ and $lastChar =~ /\s/
-               and $self->_isSpaceRemovable($propertyName, $propI) ) {
-            # don't add anything
-         } elsif( $char =~ /\n/ 
-               and not $self->_isSpaceRemovable($propertyName,$propI) ) {
-            # makes sure newlines are saved when they are supposed to
-            $propertyValue[$propI] .= "\n";
-         } elsif( $char =~ /\s/ ) {
-            $propertyValue[$propI] .= " ";
-         } elsif( $char eq ']' ) {
+         if( $char eq ']' and not $isEscape) {
             # error if not invalue
             unless( $inValue ) {
                croak "Mismatched ']' : FAILED";
             }
-            $self->_debug( "Adding Property: '$propertyName' => '$propertyValue[$propI]'\n");
+            $self->_debug( "Adding Property: '$propertyName' "
+               ."=> '$propertyValue[$propI]'\n");
    
-            # note empty tag will be pushed on as an empty string
-            # _typeread before adding to values
-            #for( my $i = 0; $i < @propertyValue; $i++) {
-            #   $propertyValue[$i] = $self->_typeRead( $propertyName, $i, $propertyValue[$i]);
-            #}
             if( $propI > 0 ) {
-               my $val =  $self->_typeRead($propertyName, 0, $self->compose(@propertyValue));
+               my $val =  $self->_typeRead($propertyName, 0,
+                          $self->compose(@propertyValue));
                if( defined $val ) {
                   push @values, $val;
                } else {
@@ -1638,17 +1651,55 @@ sub _read {
                   return 0;
                }
             }
-            #push @values, $propI > 0 ? $self->compose(@propertyValue) : $propertyValue[0];
-   
             $lastName = $propertyName;
             $propertyName = '';
             @propertyValue = ();
             $propI = 0;
             $inValue = 0;
-         } else {
-            $propertyValue[$propI] .= $char;
+            next;
+         } elsif( $char eq ':' and $self->_maybeComposed($propertyName)) {
+            if($propI >= 1 ) {
+               $self->err( "Too Many Compose components in value: FAILED" );
+               return undef;
+            }
+            $propI++;
+            $propertyValue[$propI] = ""; # should be redundent
+            next;
+         } elsif( $self->_isText($propertyName, $propI) ) {
+            if( $isEscape ) {
+               if( $char eq '\n' ) {
+                  $char = ""; # no space
+               }
+               if( $char =~ /\s/ ) {
+                  $char = " "; # single space
+               }
+               $isEscape = 0;
+            } elsif( $char eq '\\' ) {
+               $isEscape = 1;
+               $char = "";
+            } elsif( $char =~ /\n/ ) {
+               # makes sure newlines are saved when they are supposed to
+               $char = "\n";
+            } elsif( $char =~ /\s/ ) { # all other whitespace to a space
+               $char = " ";
+            }
+         } elsif( $self->_isSimpleText($propertyName, $propI ) ) {
+            if( $isEscape ) {
+               if( $char eq '\n' ) {
+                  $char = ""; # no space
+               }
+               if( $char =~ /\s/ ) {
+                  $char = " "; # single space
+               }
+               $isEscape = 0;
+            } elsif( $char eq '\\' ) {
+               $isEscape = 1;
+               $char = "";
+            } elsif( $char =~ /\s/ ) { # all whitespace to a space
+               $char = " ";
+            }
          }
-
+         $propertyValue[$propI] .= $char;
       # outside of a value 
       } elsif( $char eq '(' ) {
          if( @values ) {
@@ -1683,7 +1734,8 @@ sub _read {
             @values = ();
          }
          if( not $inTree ) {
-            $self->err( "Attempted to start node outside of GameTree: Failed" );
+            $self->err("Attempted to start node outside"
+               . "of GameTree: Failed");
             return undef;
          }
          if( $isStart ) {
@@ -1909,7 +1961,7 @@ be passed down to all subsequient nodes, untill a new value is set.
 
 =item All Inherited properties are T_NONE
 
-This holds true for standard FF4 and I believe it would cause conflict
+This holds true for standard FF4 and I believe it would cause a conflict
 if it was not true.
 
 =back

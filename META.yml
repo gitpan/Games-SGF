@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Games-SGF
-version:             0.03
+version:             0.04
 abstract:            A general SGF parser
 license:             ~
 author:              
@@ -8,7 +8,7 @@ author:
 generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
-    enum:                          0
+    enum:                          1.016
     Test::More:                    0
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html
