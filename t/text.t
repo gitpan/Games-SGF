@@ -1,5 +1,5 @@
 use Test::More tests => 3;
-use Games::SGF::Go;
+use Games::SGF;
 use Data::Dumper;
 require "t/sgf_test.pl";
 
@@ -10,7 +10,7 @@ ion 1]C[SomeText
 THan may be on multiple lines])
 SGF
 
-my $sgf = new Games::SGF::Go();
+my $sgf = new Games::SGF();
 
 ok( $sgf->readText($sgf_in), "Read File");
 tag_eq( $sgf, "Root Node",

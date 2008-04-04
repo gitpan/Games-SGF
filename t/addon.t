@@ -1,10 +1,10 @@
-use Test::More tests => 15;                      # last test to print
+use Test::More tests => 21;                      # last test to print
 use Games::SGF;
 require 't/sgf_test.pl';
 my $sgf_in = <<SGF;
 (;KM[5.00];W[df];B[aa];AW[ab][ac];CR[aa][ac:cd])
 SGF
-
+#TODO make a test check and write callback
 # create Parsers
 my $parser = new Games::SGF();
 
@@ -14,6 +14,12 @@ diag( $parser->err ) if $parser->err;
 # add tags to parsers
 ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
 diag( $parser->err ) if $parser->err;
+
+# try adding non CODE callbacks
+ok( not( $parser->setStoneRead("something")), "Add Bad Stone Parse");
+ok( not( $parser->setMoveRead("Something")), "Add Bad Move Parse");
+ok( not( $parser->setPointRead("Something")), "Add Bad Point Parse");
+$parser->err("");
 
 # add point, stone, move callbacks
 ok( $parser->setStoneRead(\&parsepoint), "Add Stone Parse");
@@ -25,6 +31,11 @@ diag( $parser->err ) if $parser->err;
 ok( $parser->setPointRead(\&parsepoint), "Add Point Parse");
 diag( $parser->err ) if $parser->err;
 
+# redefining subroutines
+ok( not($parser->setStoneRead(\&parsepoint)), "Readding Stone Parse");
+ok( not($parser->setMoveRead(\&parsepoint)), "Readding Move Parse");
+ok( not($parser->setPointRead(\&parsepoint)), "Readding Point Parse");
+$parser->err("");
 
 # read in $sgf_in
 ok( $parser->readText($sgf_in), "Read SGF");

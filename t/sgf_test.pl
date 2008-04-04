@@ -26,7 +26,8 @@ sub tag_eq {
       my $values = $sgf->property($t);
       
       # adds array ref if not ref'ed
-      if( not ref $tags{$t} ) {
+      # blessed $refs count as a single item
+      if( not( ref $tags{$t}) or blessed($tags{$t}) ) {
          $tags{$t} = [$tags{$t}];
       }
 
@@ -62,7 +63,6 @@ sub deep_test {
 sub _deep_test {
    my $got = shift;
    my $expect = shift;
-
    #if( not defined $got or not defined $expect ) {
    #   return (0, join( "\n", Dumper($got, $expect)));
    #}
@@ -75,7 +75,7 @@ sub _deep_test {
    if( (defined $rGot && defined $rExp and $rGot ne $rExp) or
          defined $rGot xor defined $rExp ) {
       return (0, "reftype('$rGot', '$rExp'):\n" 
-         . join( "\n", Dumper($got, $expect)));
+         . join( "\n", Data::Dumper->Dump([$got, $expect],["got","expect"])));
    }
 
 
@@ -83,14 +83,15 @@ sub _deep_test {
    if( (defined $bGot && defined $bExp and $bGot ne $bExp) or
          defined $bGot xor defined $bExp ) {
       return (0, "blessed('$bGot','$bExp'):\n" 
-         . join( "\n", Dumper($got, $expect)));
+         . join( "\n", Data::Dumper->Dump([$got, $expect],["got","expect"])));
    }
 
    # the references are the same
    if( defined $rGot ) {
       if( $rGot eq 'ARRAY' ) {
          if( @$got != @$expect ) {
-            return (0, join( "\n", Dumper($got, $expect)));
+            return (0, join( "\n", Data::Dumper->Dump(
+                     [$got, $expect],["got","expect"])));
             return 0;
          }
    
@@ -105,7 +106,8 @@ sub _deep_test {
          return 1;
       } elsif( $rGot eq 'HASH') {
          if( scalar keys %$got != scalar keys %$expect ) {
-            return (0, Dumper($got, $expect));
+            return (0, join( "\n", Data::Dumper->Dump(
+                     [$got, $expect],["got","expect"])));
          }
       
          # same number of keys
@@ -124,17 +126,20 @@ sub _deep_test {
          if( $got == $expect ) {
             return 1;
          } else {
-            return (0, join( "\n", Dumper($got, $expect)));
+            return (0, join( "\n", Data::Dumper->Dump(
+                     [$got, $expect],["got","expect"])));
          }
       } elsif( (not looks_like_number $got) 
             and (not looks_like_number $expect)) {
          if( $got eq $expect ) {
             return 1;
          } else {
-            return (0, join( "\n", Dumper($got, $expect)));
+            return (0, join( "\n", Data::Dumper->Dump(
+                     [$got, $expect],["got","expect"])));
          }
       } else {
-         return (0, join( "\n", Dumper($got, $expect)));
+         return (0, join( "\n", Data::Dumper->Dump(
+                 [$got, $expect],["got","expect"])));
       }
    }
    return(0,"Not sure how I reached the end(must be strange reftype $rGot\n");

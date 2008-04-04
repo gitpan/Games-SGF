@@ -3,6 +3,7 @@ package Games::SGF::Go;
 use strict;
 use warnings;
 require Games::SGF;
+no warnings 'redefine';
 
 =head1 NAME
 
@@ -10,12 +11,12 @@ Games::SGF::GO - A Go Specific SGF Parser
 
 =head1 VERSION
 
-Version 0.02 Alpha Release
+Version 0.05
 
 =cut
 
 our( @ISA ) = ('Games::SGF');
-our( $VERSION ) = 0.02;
+our( $VERSION ) = 0.05;
 
 =head1 SYNOPSIS
 
@@ -87,13 +88,17 @@ sub new {
    # add Go CallBacks
 
    # Read
-   $self->setPointRead(\&_readPoint);
-   $self->setStoneRead(\&_readPoint);
+   $self->setPointRead( sub { 
+         return $self->point( _readPoint($_[0]) );
+      });
+   $self->setStoneRead( sub {
+         return $self->stone( _readPoint($_[0]) );
+      });
    $self->setMoveRead( sub {
       if( $_[0] eq "" ) {
-         return "";
+         return $self->pass;
       } else {
-         return &_readPoint($_[0]);
+         return $self->move( _readPoint($_[0]));
       }
    });
 
@@ -101,7 +106,7 @@ sub new {
    $self->setPointCheck(\&_checkPoint);
    $self->setStoneCheck(\&_checkPoint);
    $self->setMoveCheck( sub {
-      if( $_[0] eq "" ) {
+      if( $self->isPass($_[0]) ) {
          return 1;
       } else {
          return &_checkPoint($_[0]);
@@ -109,14 +114,21 @@ sub new {
    });
 
    # Write
-   $self->setPointWrite(\&_writePoint);
-   $self->setStoneWrite(\&_writePoint);
-   $self->setMoveWrite(\&_writePoint);
+   $self->setPointWrite( \&_writePoint );
+   $self->setStoneWrite( \&_writePoint );
+   $self->setMoveWrite( sub {
+         if( $self->isPass( $_[0] ) ) {
+            return "";
+         } else {
+            _writePoint($_[0]);
+         }
+      });
    
 
    return bless $self, $class; # reconsecrate
 }
 
+# SGF -> internal
 sub _readPoint {
    my $text = shift;
    my( @cord ) = split //, $text;
@@ -130,14 +142,13 @@ sub _readPoint {
          #error;
       }
    }
-   return [@cord];
+   return @cord;
 }
 
+# checks internal
 sub _checkPoint {
    my $struct = shift;
-   if( ref $struct ne 'ARRAY' ) {
-      return 0;
-   }
+   return 0 if @$struct <= 0;
    foreach( @$struct ) {
       if( /\D/ ) {
          return 0;
@@ -148,6 +159,8 @@ sub _checkPoint {
    }
    return 1;
 }
+
+# internal -> SGF
 sub _writePoint {
    my $struct = shift;
    my $text = "";
@@ -160,6 +173,88 @@ sub _writePoint {
    }
    return $text;
 }
+
+=head2 point
+
+=head2 stone
+
+=head2 move
+
+  $struct = $self->move(@cord);
+  @cord = $self->move($struct);
+
+If a point, stone, or move is passed in, it will be broken into it's parts
+and returned. If the parts are passed in it will construct the internal
+structure which the parser uses.
+
+These override L<Games::SGF/point>, L<Games::SGF/stone>, and
+L<Games::SGF/move>.
+
+=cut
+
+# if passed @cord will return @cord again
+sub point {
+   my $self = shift;
+   if( $self->isMove($_[0]) ) {
+      return @{$_[0]};
+   } else {
+      return bless [@_], 'Games::SGF::Go::point';
+   }
+}
+sub stone {
+   my $self = shift;
+   if( $self->isMove($_[0]) ) {
+      return @{$_[0]};
+   } else {
+      return bless [@_], 'Games::SGF::Go::stone';
+   }
+}
+sub move {
+   my $self = shift;
+   if( $self->isMove($_[0]) ) {
+      return @{$_[0]};
+   } else {
+      return bless [@_], 'Games::SGF::Go::move';
+   }
+}
+
+=head2 isPass
+
+   $sgf->isPass($move);
+
+The method will return true if the move was a pass.
+
+This is represented in the SGF as an empty string:
+
+  ;B[];W[]
+
+=cut
+
+sub isPass {
+   my $self = shift;
+   my $move = shift;
+
+   if( $self->isMove($move) ) {
+      if( $move->[0] eq "" ) {
+         return 1;
+      }
+   }
+   return 0;
+}
+
+=head2 pass
+
+   $move = $sgf->pass;
+
+This will return a $move which is a pass.
+
+=cut
+
+sub pass {
+   my $self = shift;
+   return $self->move("");
+}
+
 1;
 __END__
 
@@ -167,11 +262,7 @@ __END__
 
 L<Games::SGF>
 
-L<http://www.red-bean.com/sgf>
-
-L<Games::Goban>
-
-L<Games::Go::SGF>
+L<http://www.red-bean.com/sgf/go.html>
 
 =head1 AUTHOR
 

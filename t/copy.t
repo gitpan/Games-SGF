@@ -1,24 +1,28 @@
-use Test::More tests => 69;                      # last test to print
+use Test::More tests => 183;                      # last test to print
 use Games::SGF;
+use Data::Dumper;
+use warnings;
 require 't/sgf_test.pl';
 
 my $sgf_in = <<SGF;
 (;GM[1]FF[4]AP[qGo:1.5.4]ST[1]
 SZ[19]HA[0]KM[5.5]PW[White]PB[Black]
-AB[dp][ep][eq]AW[do][eo][fp][fq]
-;B[go]
+AB[dp][ep][eq]AW[do][eo][fp][fq]PL[B]
+;B[go]DO[];PL[W]
 (
-;W[hp];B[io]
+;W[hp];B[io]GB[1]
 )
 (
-;W[hq];B[hp];W[ip]LB[fo:A]C[Some Comment \\] with a needed escape]
+;W[hq];B[hp];W[ip]LB[fo:A]C[Some Comment \\]: colen for good messure
+ with a needed escape]FG[]
 ;B[iq];W[hr]
 )
 )
+(;GM[1]FF[4]C[NextGame])
 SGF
 
 # create Parsers
-my $parser1 = new Games::SGF(debug => 1);
+my $parser1 = new Games::SGF();
 my $parser2 = new Games::SGF();
 
 ok( $parser1, "Create Parser Object 1" );
@@ -31,16 +35,18 @@ ok( $parser2->addTag('KM', $parser2->T_GAME_INFO, $parser2->V_REAL ), "addTag");
 # read in $sgf_in
 ok( $parser1->readText($sgf_in), "Read Initial SGF Text");
 # write it back out
-my $sgf_out2 = $parser1->writeText;
-ok($sgf_out2, "Write the parsed Tree");
+ok($parser1->writeFile('test.sgf'), "Write the parsed Tree");
 
 # read it in the second parser
-ok($parser2->readText($sgf_out2), "Read Second SGF Text");
+ok($parser2->readFile('test.sgf'), "Read Second SGF Text");
+#clean up the write test
+unlink 'test.sgf' or die "Failed to unlink 'test.sgf':$!";
 test_nav( $parser1, "parse1");
 test_nav( $parser2, "parse2");
 sub test_nav {
    my $sgf = shift;
    my $name = shift;
+   my $notNext = shift;
 
    tag_eq( $sgf, $name,
       GM => [1],
@@ -52,42 +58,72 @@ sub test_nav {
       KM => [5.5],
       PW => ["White"],
       PB => ["Black"],
-      AB => ["dp","ep","eq"],
-      AW => ["do","eo","fp","fq"] );
+      AB => [  $sgf->stone("dp"),
+               $sgf->stone("ep"),
+               $sgf->stone("eq")
+            ],
+      AW => [  $sgf->stone("do"),
+               $sgf->stone("eo"),
+               $sgf->stone("fp"),
+               $sgf->stone("fq")
+            ],
+      PL => $sgf->C_BLACK );
    #node_next($sgf, "1-$name");
 
    ok($sgf->next, "1-$name");
-   tag_eq( $sgf, $name, B => ["go"] );
+   tag_eq( $sgf, $name,
+      B => $sgf->move("go"),
+      DO => "" );
+   ok($sgf->next, "1-$name");
+   tag_eq( $sgf, $name,
+      PL => $sgf->C_WHITE);
 
    my ($num_var) = $sgf->variations;
    ok($num_var == 2, "number of variations");
    ok($sgf->gotoVariation(0), "1 - variation");
    tag_eq( $sgf, "1-$name",
-      W => ["hp"]);
+      W => $sgf->move("hp"));
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "1-$name",
-      B => ["io"]);
+      B => $sgf->move("io"),
+      GB => $sgf->DBL_NORM);
    ok($sgf->gotoParent, $name);
    ok($sgf->gotoVariation(1), "2-variation");
    tag_eq( $sgf, "2-$name",
-      W => ["hq"]);
+      W => $sgf->move("hq"));
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "2-$name",
-      B => ["hp"]);
+      B => $sgf->move("hp"));
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "2-$name",
-      W => ["ip"],
-      LB => [$sgf->compose("fo","A")],
-      C => ["Some Comment ] with a needed escape"]);
+      W => $sgf->move("ip"),
+      LB => [$sgf->compose($sgf->point("fo"),"A")],
+      C => ["Some Comment ]: colen for good messure
+ with a needed escape"],
+      FG => "");
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "2-$name",
-      B => ["iq"]);
+      B => $sgf->move("iq"));
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "2-$name",
-      W => ["hr"]);
+      W => $sgf->move("hr"));
+   
+   # move to prev node and check
+   ok($sgf->prev, "prev-$name");
+   tag_eq( $sgf, "2-$name",
+      B => $sgf->move("iq"));
+
+   ok($sgf->nextGame, "nextgame-$name");
+   tag_eq( $sgf, "nextGame-$name",
+      GM => 1,
+      FF => 4,
+      C => "NextGame");
+
+   ok($sgf->prevGame, "prevGame-$name");
+   test_nav($sgf, "retest-$name", 1) unless $notNext;
 }

@@ -1,16 +1,20 @@
+Build.PL
 Changes
+Build.PL
 MANIFEST
-Makefile.PL
 README
+examples/sgf_break.pl
 lib/Games/SGF.pm
 lib/Games/SGF/Go.pm
+sgf/go-1.sgf
 t/00-load.t
+t/addon.t
+t/copy.t
+t/edit.t
+t/go-game.t
+t/inherit.t
 t/pod-coverage.t
 t/pod.t
-t/copy.t
-t/addon.t
 t/sgf_test.pl
-t/sgf/go-1.sgf
-t/go-game.t
 t/text.t
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml

@@ -36,3 +36,22 @@ Revision history for Games-SGF
         Added t/text.t for testing SIMPLE_TEXT and TEXT types
         Fixed SIMPLE_TEXT and TEXT type handling
         Fixed sgf_test.pl undef warnings
+
+0.05
+        3/29/08
+        Stubbed LoA and Twixt subclass modules
+        Writing Module::Build script
+        Added isMove, Move type subs for SGF.pm and Go.pm
+        Restructured _typeFunc's
+        Modified tests to have better coverage over code
+        Removed from setProperty tag check on compose _tagCheck handles it
+
+        3/30/08
+        Integrated isType, and type(move|point|stone) methods
+        Added edit.t test (removal and split methods)
+        Fixed Bugs when during test writing
+
+        3/31/08
+        Added inherit.t
+        Fixed some bugs related to inherited tags
+        Added example/sgf_plit.pl
