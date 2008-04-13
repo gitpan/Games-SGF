@@ -1,6 +1,6 @@
 ---
 name: Games-SGF
-version: 0.05
+version: 0.06
 author: []
 abstract: A general SGF parser
 license: perl
@@ -11,15 +11,21 @@ requires:
   perl: 5.6.1
 build_requires:
   Data::Dumper: 2.121
+  Pod::Coverage: 0.19
   Scalar::Util: 1.14
   Test::More: 0.7
+  Test::Pod: 1.26
+  Test::Pod::Coverage: 1.08
 provides:
   Games::SGF:
     file: lib/Games/SGF.pm
-    version: 0.05
+    version: 0.06
   Games::SGF::Go:
     file: lib/Games/SGF/Go.pm
-    version: 0.05
+    version: 0.06
+  Games::SGF::Util:
+    file: lib/Games/SGF/Util.pm
+    version: 0.06
 generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html

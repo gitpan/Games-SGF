@@ -1,5 +1,6 @@
-use Test::More tests => 33;
+use Test::More tests => 38;
 use Games::SGF;
+use Data::Dumper;
 require "t/sgf_test.pl";
 
 my $sgf_in = <<SGF;
@@ -12,31 +13,49 @@ SGF
 my $sgf = new Games::SGF();
 
 ok( $sgf->readText($sgf_in), "Read SGF_IN");
-testNav($sgf);
+testNav($sgf, 2);
+$sgf->gotoRoot;
+ok( $sgf->setProperty("PM"), "unset PM" );
+if( $sgf->err ) {
+   diag($sgf->err);
+   $sgf->err("");
+}
+ok( not( $sgf->property("PM")), "should not fetch");
+$sgf->err("");
+ok( $sgf->setProperty("PM", 3), "PM to 3" );
+if( $sgf->err ) {
+   diag($sgf->err);
+   $sgf->err("");
+}
+
 my $sgf_out;
 ok( $sgf_out = $sgf->writeText, "Writing Text");
 $sgf = new Games::SGF();
 ok( $sgf->readText($sgf_out), "Read SGF_OUT");
-testNav($sgf);
+testNav($sgf, 3);
 
 
 sub testNav {
    my $sgf = shift;
+   my $pm = shift;
+   my( %tags );
+   %tags = map { $_ => 1 } $sgf->property;
+   ok( $tags{"C"} && $tags{"PM"}, "property no prams");
    tag_eq( $sgf, "Root Node",
       C => "Some Prop",
-      PM => 2
+      PM => $pm
    );
    $sgf->err("");
    ok($sgf->next, "goto second node");
    tag_eq( $sgf, "Second Node",
       B => $sgf->move('ab'),
-      PM => 2
+      PM => $pm
    );
    $sgf->err("");
    ok($sgf->gotoVariation(0), "First Branch");
    tag_eq( $sgf, "First Branch First Node",
       W => $sgf->move('fg'),
-      PM => 2
+      PM => $pm
    );
    $sgf->err("");
    ok($sgf->gotoParent, "Going to Parent");

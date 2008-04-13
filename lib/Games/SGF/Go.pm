@@ -11,12 +11,11 @@ Games::SGF::GO - A Go Specific SGF Parser
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
-
 our( @ISA ) = ('Games::SGF');
-our( $VERSION ) = 0.05;
+our $VERSION = 0.06;
 
 =head1 SYNOPSIS
 
@@ -168,7 +167,7 @@ sub _writePoint {
       if( $_ < 26 ) {
          $text .= chr( ord('a') + $_ );
       } else {
-         $text .= chr( ord('A') + $_ );
+         $text .= chr( ord('A') + $_ - 26 );
       }
    }
    return $text;
@@ -195,18 +194,10 @@ L<Games::SGF/move>.
 # if passed @cord will return @cord again
 sub point {
    my $self = shift;
-   if( $self->isMove($_[0]) ) {
+   if( $self->isPoint($_[0]) ) {
       return @{$_[0]};
    } else {
       return bless [@_], 'Games::SGF::Go::point';
-   }
-}
-sub stone {
-   my $self = shift;
-   if( $self->isMove($_[0]) ) {
-      return @{$_[0]};
-   } else {
-      return bless [@_], 'Games::SGF::Go::stone';
    }
 }
 sub move {
@@ -215,6 +206,14 @@ sub move {
       return @{$_[0]};
    } else {
       return bless [@_], 'Games::SGF::Go::move';
+   }
+}
+sub stone {
+   my $self = shift;
+   if( $self->isStone($_[0]) ) {
+      return @{$_[0]};
+   } else {
+      return bless [@_], 'Games::SGF::Go::stone';
    }
 }
 
@@ -272,4 +271,44 @@ David Whitcomb, C<< <whitcode at gmail.com> >>
 
 Please report any bugs or feature requests to C<bug-games-sgf at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Games-SGF>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+automatically be notified of progress on your bug as I make changes
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Games::SGF::Go
+
+
+You can also look for information at:
+
+=over 4
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Games-SGF>
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Games-SGF>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/Games-SGF>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/Games-SGF>
+
+=back
+
+
+=head1 ACKNOWLEDGEMENTS
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2008 David Whitcomb, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+.

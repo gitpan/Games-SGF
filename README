@@ -1,9 +1,15 @@
 Games-SGF
 
 Games::SGF is a generic Smart Game Format(SGF) Parser. It implements all 
-FF[4] general properties. It does not implement any game specific
-functionality, but instead allows the user to hook the application, or game
-specific functionality.
+FF[4] general properties. It is also bundled with some modules for implementing
+some game specific features. There is also a Utility module which contains
+some useful tools that did not fit in Games::SGF.
+
+MODULES INCLUDED
+
+Games::SGF
+Games::SGF::Util
+Games::SGF::Go
 
 INSTALLATION
 

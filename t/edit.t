@@ -21,8 +21,8 @@ ok( $parser->readText($sgf_in), "Read SGF");
 diag( $parser->err ) if $parser->err;
 test_nav( $parser, "parse");
 
-1 while $parser->gotoParent;
-1 while $parser->prev;
+$parser->gotoRoot;
+
 ok($parser->next, "moving up a node");
    diag($parser->err) if $parser->err;
 ok($parser->next, "moving up a node");
@@ -37,8 +37,7 @@ ok($parser->property("W", $parser->move("ab")), "adding prop");
    diag($parser->err) if $parser->err;
 
 
-1 while $parser->gotoParent;
-1 while $parser->prev;
+$parser->gotoRoot;
 test_nav($parser, "pass-2", 1);
 
 

@@ -18,12 +18,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
 
-our $VERSION = 0.05;
+our $VERSION = 0.06;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -126,41 +126,74 @@ my( %ff4_properties ) = (
   $sgf->setPointRead( sub { "something useful"} );
 
   $sgf->addTag('KM', $sgf->T_GAME_INFO, $sgf->V_REAL );
-  $sgf->parseFile("015-01.sgf");
+  $sgf->readFile("015-01.sgf");
+  $sgf->setProperty( "AP", $sgf->compose("MyApp", "Version 1.0") );
 
 =head1 DISCRIPTION
 
 Games::SGF is a general Smart Game Format Parser. It parses
 the file, and checks the properties against the file format 4
-standard. No game specific features are implemented.
+standard. No game specific features are implemented, but can be
+added on in inheriting classes.
 
-It is designed so that the user can tell it how to handle new
+It is designed so that the user can tell the parser how to handle new
 tags. It also allows the user to set callbacks to parse Stone,
-Point, and Move types. These are types are game specific.
+Point, and Move types. These are game specific types.
+
+=head2 SGF Structure
 
 SGF file contains 1 or more game trees. Each game tree consists of a sequence
-of nodes followed by a sequence of branches. Each branch also consists a
-sequence of nodes followed by a sequence of branches.
+of nodes followed by a sequence of variations. Each variation also consists a
+sequence of nodes followed by a sequence of variations.
 
 Each node contains a set of properties. Each property has a L</Type>, L</Value Type>,
-L</Flags>, and an L<Attribute>. The Type specifies where and when an attribute may
-bew used. A Value Type says what type of value it contains. Flags are used to
-specify variuos properties, such as being a list, or if the field is empty.
+L</Flags>, and an L</Attribute>. 
 
+=head2 Interface
 
-SGF Format
+The interface is broken into 3 conceptal parts
 
-User Format
+=over
 
-Internal Format
+=item SGF Format
 
-Point, Stone, Move Converts User Format to Internal Format
+This is the straight SGF Format which is saved and read using L</IO> methods.
 
-typeRead, typeWrite convert SGF to Internal
+=item User Format
 
-typeCheck checks the internal structure(needs to handle blessedness)
+This is the format that the Games::SGF user will come in contact with. Various
+methods will convert the Uwer Format into the Internal Format which Games::SGF
+actually deals with.
 
-Attributes specify other behavior.
+These can take the form of Constants:
+
+=over 
+
+=item Double Values: DBL_NORM and DBL_EMPH
+
+=item Color Values: C_BLACK and C_WHITE
+
+=back
+
+Or with converstion methods:
+
+=over
+
+=item L</compose>
+
+=item L</move>
+
+=item L</stone>
+
+=item L</point>
+
+=back
+
+=item Internal Format
+
+If this format differs from the others, you don't need to know.
+
+=back
 
 Also see: L<http://www.red-bean.com/sgf>
 
@@ -202,7 +235,9 @@ sub new {
    return bless $self, $class;
 }
 
-=head2 readText
+=head2 IO
+
+=head3 readText
 
   $sgf->readText($text);
 
@@ -225,7 +260,7 @@ sub readText {
    return 1;
 }
 
-=head2 readFile
+=head3 readFile
 
   $sgf->readFile($file);
 
@@ -249,7 +284,7 @@ sub readFile {
    return $self->readText($text) ;
 }
 
-=head2 writeText
+=head3 writeText
 
   $sgf->writeText;
 
@@ -269,70 +304,8 @@ sub writeText {
    #  write branch: write sequences, write other branches
    return $text;
 }
-sub _write_tags {
-   my $self = shift;
-   my $hash = shift;
-   my $text = "";
-   foreach my $tag ( keys %$hash ) {
-      my( @values ) = @{$hash->{$tag}};
-      $text .= $tag;
-      if( @values == 0 ) {
-         $text .= "[]";
-      } else {
-         foreach my $val( @values ) {
-            $text .= "[";
-            # _type* take care of composed values now
-            # add value
-            my $val = $self->_tagWrite($tag,0,$val);
-            return undef if not defined $val;
-            $text .= $val;
-            $text .= "]"
-         }
-         $text .= "\n"; # add some white space to make it easier to read
-      }
-   }
-   return $text;
-}
 
-
-sub _write {
-   my $self = shift;
-   my $branch = shift;
-   my $text = "(";
-   # foreach node ";", tags
-   for( my $i = 0; $i < @{$branch->[0]}; $i++ ) {
-      $text .= ";"; # starts the node
-
-      # write tags in main tree
-      $text .= $self->_write_tags($branch->[0]->[$i]);
-
-      # write tags from inherited tree
-      my( %inherit );
-      # find the tags
-      foreach my $tag ( keys %{$self->{'inherited'}}) {
-         if( exists $self->{'inherited'}->{$tag}->{$branch}->{$i} ) {
-            $inherit{$tag} = $self->{'inherited'}->{$tag}->{$branch}->{$i};
-         }
-      }
-      $text .= $self->_write_tags(\%inherit);
-   }
-
-   # write variations
-   for( my $i = 0; $i < @{$branch->[1]}; $i++ ) {
-      $text .= $self->_write($branch->[1]->[$i]);
-      #$text .= "\n"; # white space for readablity
-   }
-
-   $text .= ")"; # finish branch
-   $text .= "\n"; # white space for readablity
-
-   return $text;
-}
-
-   # foreach variation
-   #  _write $var
-
-=head2 writeFile
+=head3 writeFile
 
   $sgf->writeFile($filename);
 
@@ -354,7 +327,9 @@ sub writeFile {
    return 1;
 }
 
-=head2 addTag
+=head2 Property Manipulation
+
+=head3 addTag
 
   $sgf->addTag($tagname, $type, $value_type, $flags, $attribute);
 
@@ -392,7 +367,7 @@ sub addTag {
    return 1;
 }
 
-=head2 setPointRead
+=head3 setPointRead
 
 =cut
 
@@ -413,7 +388,7 @@ sub setPointRead {
    return 1;
 }
 
-=head2 setMoveRead
+=head3 setMoveRead
 
 =cut
 
@@ -433,7 +408,7 @@ sub setMoveRead {
    return 1;
 }
 
-=head2 setStoneRead
+=head3 setStoneRead
 
   $sgf->setPointRead(\&coderef);
   $sgf->setMoveRead(\&coderef);
@@ -476,7 +451,7 @@ sub setStoneRead {
 }
 
 
-=head2 setPointCheck
+=head3 setPointCheck
 
 =cut
 
@@ -497,7 +472,7 @@ sub setPointCheck {
    return 1;
 }
 
-=head2 setMoveCheck
+=head3 setMoveCheck
 
 =cut
 
@@ -517,7 +492,7 @@ sub setMoveCheck {
    return 1;
 }
 
-=head2 setStoneCheck
+=head3 setStoneCheck
 
   $sgf->setPointCheck(\&coderef);
   $sgf->setMoveCheck(\&coderef);
@@ -560,7 +535,7 @@ sub setStoneCheck {
    return 1;
 }
 
-=head2 setPointWrite
+=head3 setPointWrite
 
 =cut
 
@@ -581,7 +556,7 @@ sub setPointWrite {
    return 1;
 }
 
-=head2 setMoveWrite
+=head3 setMoveWrite
 
 =cut
 
@@ -601,7 +576,7 @@ sub setMoveWrite {
    return 1;
 }
 
-=head2 setStoneWrite
+=head3 setStoneWrite
 
   $sgf->setPointWrite(\&coderef);
   $sgf->setMoveWrite(\&coderef);
@@ -639,19 +614,14 @@ sub setStoneWrite {
    return 1;
 }
 
-=head2 nextGame
+=head2 Navigation
+
+=head3 nextGame
 
   $sgf->nextGame;
 
 Sets the node pointer to the next game in the Collection. If the current
 game is the last game then returns 0 otherwise 1.
-
-=head2 prevGame;
-
-  $sgf->prevGame;
-
-Sets the node pointer to the prevoius game in the Collection. If the current
-game is the first game then returns 0 otherwise 1.
 
 =cut
 
@@ -663,11 +633,20 @@ sub nextGame {
       return 0;
    } else {
       $self->{'game'}++;
-      $self->{'parents'} = [ $self->{'collection'}->[$self->{'game'}] ];
-      $self->{'node'} = 0;
+      $self->gotoRoot;
       return 1;
    }
 }
+
+=head3 prevGame;
+
+  $sgf->prevGame;
+
+Sets the node pointer to the prevoius game in the Collection. If the current
+game is the first game then returns 0 otherwise 1.
+
+=cut
+
 
 sub prevGame {
    my $self = shift;
@@ -676,13 +655,135 @@ sub prevGame {
       return 0;
    } else {
       $self->{'game'}--;
-      $self->{'parents'} = [ $self->{'collection'}->[$self->{'game'}] ];
+      $self->gotoRoot;
+      return 1;
+   }
+}
+
+=head3 gotoRoot
+
+  $sgf->gotoRoot;
+
+This will move the pointer to the root node of the game tree.
+
+=cut
+
+sub gotoRoot {
+   my $self = shift;
+   $self->{'parents'} = [ $self->{'collection'}->[$self->{'game'}] ];
+   $self->{'node'} = 0;
+}
+
+=head3 next
+
+  $sgf->next;
+
+Moves the node pointer ahead one node.
+
+Returns 0 if it is the last node in the branch, otherwise 1
+
+=cut
+
+sub next {
+   my $self = shift;
+   my $branch = $self->_getBranch;
+
+   if( $self->{'node'} > @{$branch->[0]} ) {
+      $self->err("Last Node in branch sequence " . $self->{'node'}
+         . " out of " . scalar @{$branch->[0]});
+      return 0;
+   } else {
+      $self->{'node'}++;
+      return 1;
+   }
+}
+
+=head3 prev
+
+  $sgf->prev;
+
+Moves the node pointer back one node.
+
+Returns 0 if first node in the branch and 1 otherwise
+
+=cut
+
+sub prev {
+   my $self = shift;
+   if( $self->{'node'} > 0 ) {
+      $self->{'node'}--;
+      return 1;
+   } else {
+      return 0;
+   }
+}
+
+=head3 variations
+
+  $sgf->variations;
+
+Returns the number of variations on this branch.
+
+=cut
+
+sub variations {
+   my $self = shift;
+   my $branch = $self->_getBranch;
+   return scalar @{$branch->[1]};
+}
+
+=head3 gotoVariation
+
+  $sgf->gotoVariation($n);
+
+Goes to the first node of the specified Variation. If it returns 4
+that means that there is variations C<0..3>,
+
+Returns 1 on success and 0 on Failure.
+
+=cut
+
+sub gotoVariation {
+   my $self = shift;
+   my $n = shift;
+   my $branch = $self->_getBranch;
+   if( $n >= @{$branch->[1]} ) {
+      $self->err("Can't goto variation greater then number on branch");
+      return 0;
+   } else {
+      push @{$self->{'parents'}}, $branch->[1]->[$n];
       $self->{'node'} = 0;
       return 1;
    }
 }
 
-=head2 addGame
+=head3 gotoParent
+
+  $sgf->gotoParent;
+
+Will move the node pointer to the last node of the parent branch. This will
+fail if you already on the root branch for the current game.
+
+Returns 1 on success or 0 on failure.
+
+=cut
+
+
+sub gotoParent {
+   my $self = shift;
+   if( @{$self->{'parents'}} > 1 ) {
+      pop @{$self->{'parents'}};
+      my $branch = $self->_getBranch;
+      $self->{'node'} = @{$branch->[0]} - 1;
+      return 1;
+   } else {
+      return 0;
+   }
+}
+
+=head2 SGF Manipulation
+
+=head3 addGame
 
   $self->addGame;
 
@@ -709,114 +810,7 @@ sub addGame {
    }
 }
 
-=head2 next
-
-  $sgf->next;
-
-Moves the node pointer ahead one node.
-
-Returns 0 if it is the last node in the branch, otherwise 1
-
-=cut
-
-sub next {
-   my $self = shift;
-   my $branch = $self->_getBranch;
-
-   if( $self->{'node'} > @{$branch->[0]} ) {
-      $self->err("Last Node in branch sequence " . $self->{'node'}
-         . " out of " . scalar @{$branch->[0]});
-      return 0;
-   } else {
-      $self->{'node'}++;
-      return 1;
-   }
-}
-
-=head2 prev
-
-  $sgf->prev;
-
-Moves the node pointer back one node.
-
-Returns 0 if first node in the branch and 1 otherwise
-
-=cut
-
-sub prev {
-   my $self = shift;
-   if( $self->{'node'} > 0 ) {
-      $self->{'node'}--;
-      return 1;
-   } else {
-      return 0;
-   }
-}
-
-=head2 variations
-
-  $sgf->variations;
-
-Returns the number of variations on this branch.
-
-=cut
-
-sub variations {
-   my $self = shift;
-   my $branch = $self->_getBranch;
-   return scalar @{$branch->[1]};
-}
-
-=head2 gotoVariation
-
-  $sgf->gotoVariation($n);
-
-Goes to the first node of the specified Variation. If it returns 4
-that means that there is variations C<0..3>,
-
-Returns 1 on success and 0 on Failure.
-
-=cut
-
-sub gotoVariation {
-   my $self = shift;
-   my $n = shift;
-   my $branch = $self->_getBranch;
-   if( $n >= @{$branch->[1]} ) {
-      $self->err("Can't goto variation greater then number on branch");
-      return 0;
-   } else {
-      push @{$self->{'parents'}}, $branch->[1]->[$n];
-      $self->{'node'} = 0;
-      return 1;
-   }
-}
-
-=head2 gotoParent
-
-  $sgf->gotoParent;
-
-Will move the node pointer to the last node of the parent branch. This will
-fail if you already on the root branch for the current game.
-
-Returns 1 on success or 0 on failure.
-
-=cut
-
-
-sub gotoParent {
-   my $self = shift;
-   if( @{$self->{'parents'}} > 1 ) {
-      pop @{$self->{'parents'}};
-      my $branch = $self->_getBranch;
-      $self->{'node'} = @{$branch->[0]} - 1;
-      return 1;
-   } else {
-      return 0;
-   }
-}
-
-=head2 addNode
+=head3 addNode
 
   $sgf->addNode;
 
@@ -840,7 +834,7 @@ sub addNode {
    return 1;
 }
 
-=head2 addVariation
+=head3 addVariation
 
   $sgf->addVariation;
 
@@ -871,7 +865,7 @@ sub addVariation {
    }
 }
 
-=head2 removeNode
+=head3 removeNode
 
   $sgf->removeNode;
 
@@ -894,7 +888,7 @@ sub removeNode {
    return 1;
 }
 
-=head2 removeVariation
+=head3 removeVariation
 
   $sgf->removeVariation($n);
 
@@ -918,7 +912,7 @@ sub removeVariation {
    }
 }
 
-=head2 splitBranch
+=head3 splitBranch
 
   $sgf->splitBranch($n);
 
@@ -962,7 +956,7 @@ sub splitBranch {
    }
 }
 
-=head2 flatten
+=head3 flatten
 
   $sgf->flatten;
 
@@ -988,7 +982,7 @@ sub flatten {
 }
 
 
-=head2 property
+=head3 property
 
   my( @tags ) = $sgf->property;
   my $array_ref = $sgf->property( $value );
@@ -1004,8 +998,6 @@ tags will only be returned if they were set on this node.
 
 =cut
 
-#TODO use _setProperty and _getProperty
-#
 #  returns 0 on error
 #  returns 1 on successful set
 #  returns $arrref on successful get
@@ -1018,7 +1010,7 @@ sub property {
       my $branch = $self->_getBranch;
       my $node = $self->_getNode;
       @tags = keys %$node;
-      foreach my $t ( $self->{'inherited'} ) {
+      foreach my $t ( keys %{$self->{'inherited'}} ) {
          if( exists $self->{'inherited'}->{$t}->{$branch}->{$self->{'node'}} ) {
             push @tags, $t;
          }
@@ -1034,7 +1026,7 @@ sub property {
    }
 }
 
-=head2 getProperty
+=head3 getProperty
 
   my $array_ref = $sgf->getProperty($tag);
   if( $array_ref ) {
@@ -1108,7 +1100,7 @@ sub getProperty {
    }
 }
 
-=head2 setProperty
+=head3 setProperty
 
   fail() unless $sgf->setProperty($tag,@values);
 
@@ -1181,10 +1173,9 @@ sub setProperty {
                or ($tnode == T_MOVE and $tag_type == T_SETUP) ) {
             $self->err("Can't mix T_SETUP and T_MOVES\n");
             return 0;
-         } elsif( $tnode == undef
-               and ($tag_type == T_MOVE or $tag_type == T_SETUP) ) {
-            $tnode = $tag_type;
          }
+      } elsif( ($tag_type == T_MOVE or $tag_type == T_SETUP) ) {
+         $tnode = $tag_type;
       }
    }
    # don't set invalid structures
@@ -1241,7 +1232,9 @@ sub setProperty {
    return 1;
 }
 
-=head2 compose
+=head2 Value Type Functions
+
+=head3 compose
 
   ($pt1, $pt2) = $sgf->compose($compose);
   $compose = $sgf->compose($pt1,$pt2);
@@ -1263,7 +1256,7 @@ sub compose {
    }
 }
 
-=head2 isComposed
+=head3 isComposed
 
   if( $sgf->isComposed($compose) ) {
      ($val1, $val2) = $sgf->compose($compose);
@@ -1281,11 +1274,11 @@ sub isComposed {
    return ref $val eq 'Games::SGF::compose';
 }
 
-=head2 isPoint
+=head3 isPoint
 
-=head2 isStone
+=head3 isStone
 
-=head2 isMove
+=head3 isMove
 
   $self->isPoint($val);
 
@@ -1303,24 +1296,24 @@ need for these methods to be overwritten.
 sub isPoint {
    my $self = shift;
    my $val = ref shift;
-   return $val =~ m/^Games::SGF::.*point$/;
+   return scalar $val =~ m/^Games::SGF::.*point$/;
 }
 sub isStone {
    my $self = shift;
    my $val = ref shift;
-   return $val =~ m/^Games::SGF::.*stone$/;
+   return scalar $val =~ m/^Games::SGF::.*stone$/;
 }
 sub isMove {
    my $self = shift;
    my $val = ref shift;
-   return $val =~ m/^Games::SGF::.*move$/;
+   return scalar $val =~ m/^Games::SGF::.*move$/;
 }
 
-=head2 point
+=head3 point
 
-=head2 stone
+=head3 stone
 
-=head2 move
+=head3 move
 
   $struct = $sgf->move(@cord);
   @cord = $sgf->move($struct);
@@ -1341,7 +1334,7 @@ If the SGF representation is not what you desire then override these.
 sub point {
    my $self = shift;
    if( $self->isPoint($_[0]) ) {
-      return @{$self->_typeWrite(V_POINT,@$_[0])};
+      return $self->_typeWrite(V_POINT,$_[0]);
    } else {
       return $self->_typeRead(V_POINT, $_[0]);
    }
@@ -1349,7 +1342,7 @@ sub point {
 sub stone {
    my $self = shift;
    if( $self->isStone($_[0]) ) {
-      return @{$self->_typeWrite(V_STONE,@$_[0])};
+      return $self->_typeWrite(V_STONE, $_[0] );
    } else {
       return $self->_typeRead(V_STONE, $_[0]);
    }
@@ -1357,13 +1350,15 @@ sub stone {
 sub move {
    my $self = shift;
    if( $self->isMove($_[0]) ) {
-      return @{$self->_typeWrite(V_MOVE,@$_[0])};
+      return $self->_typeWrite(V_MOVE,$_[0]);
    } else {
       return $self->_typeRead(V_MOVE, $_[0]);
    }
 }
 
-=head2 err
+=head2 Error and Diagnostic Methods
+
+=head3 err
 
   if( $sgf->err ) {
      print $sgf->err;
@@ -1397,15 +1392,12 @@ sub _getNode {
    return $branch->[0]->[$self->{'node'}];
 }
 
-# adjust _typeRead so that if it gets a compose
-# it will break it into two calls to itself
+#######################################
 #
-# same with _typeCheck
+#      INTERNAL METHODS BELOW
 #
-# have write automaticly put the ':' in place
+#######################################
 
-# Read should not be passed a compose but a list of values, then it
-# will compose them
 
 sub _tagRead {
    my $self = shift;
@@ -1497,7 +1489,7 @@ sub _typeRead {
       if($self->{'pointRead'}) {
          return $self->{'pointRead'}->($text);
       } else {
-        return bless [$text], 'Games::SGF::Point';
+        return bless [$text], 'Games::SGF::point';
       }
    } elsif( $type == V_STONE ) {
       if($self->{'stoneRead'}) {
@@ -1515,7 +1507,7 @@ sub _typeRead {
       $self->err( "Invalid type: $type\n");
       return undef;
    }
-   return $text;
+   # return $text;
 }
 # on V_TEXT and V_SIMPLE_TEXT auto escapes :, ], and \
 # there should be no need to worry abour composed escaping
@@ -1702,7 +1694,7 @@ sub _typeWrite {
       $self->err( "Invalid type: $type\n" );
       return undef;
    }
-   return $struct;
+   # return $struct;
 }
 
 
@@ -1886,10 +1878,9 @@ sub _read {
             next;
          } elsif( $self->_isText($propertyName, $propI) ) {
             if( $isEscape ) {
-               if( $char eq '\n' ) {
+               if( $char eq "\n" ) {
                   $char = ""; # no space
-               }
-               if( $char =~ /\s/ ) {
+               } elsif( $char =~ /\s/ ) {
                   $char = " "; # single space
                }
                $isEscape = 0;
@@ -1904,16 +1895,17 @@ sub _read {
             }
          } elsif( $self->_isSimpleText($propertyName, $propI ) ) {
             if( $isEscape ) {
-               if( $char eq '\n' ) {
+               if( $char eq "\n" ) {
                   $char = ""; # no space
-               }
-               if( $char =~ /\s/ ) {
+               } elsif( $char =~ /\s/ ) {
                   $char = " "; # single space
                }
                $isEscape = 0;
             } elsif( $char eq '\\' ) {
                $isEscape = 1;
                $char = "";
+            } elsif( $char =~ /\n/ ) {
+               $char = " "; # remove all unescaped newlines
             } elsif( $char =~ /\s/ ) { # all whitespace to a space
                $char = " ";
             }
@@ -1996,6 +1988,67 @@ sub _read {
    }
    return 1;
 }
+
+sub _write_tags {
+   my $self = shift;
+   my $hash = shift;
+   my $text = "";
+   foreach my $tag ( keys %$hash ) {
+      my( @values ) = @{$hash->{$tag}};
+      $text .= $tag;
+      if( @values == 0 ) {
+         $text .= "[]";
+      } else {
+         foreach my $val( @values ) {
+            $text .= "[";
+            # _type* take care of composed values now
+            # add value
+            my $val = $self->_tagWrite($tag,0,$val);
+            return undef if not defined $val;
+            $text .= $val;
+            $text .= "]"
+         }
+         $text .= "\n"; # add some white space to make it easier to read
+      }
+   }
+   return $text;
+}
+
+
+sub _write {
+   my $self = shift;
+   my $branch = shift;
+   my $text = "(";
+   # foreach node ";", tags
+   for( my $i = 0; $i < @{$branch->[0]}; $i++ ) {
+      $text .= ";"; # starts the node
+
+      # write tags in main tree
+      $text .= $self->_write_tags($branch->[0]->[$i]);
+
+      # write tags from inherited tree
+      my( %inherit );
+      # find the tags
+      foreach my $tag ( keys %{$self->{'inherited'}}) {
+         if( exists $self->{'inherited'}->{$tag}->{$branch}->{$i} ) {
+            $inherit{$tag} = $self->{'inherited'}->{$tag}->{$branch}->{$i};
+         }
+      }
+      $text .= $self->_write_tags(\%inherit);
+   }
+
+   # write variations
+   for( my $i = 0; $i < @{$branch->[1]}; $i++ ) {
+      $text .= $self->_write($branch->[1]->[$i]);
+      #$text .= "\n"; # white space for readablity
+   }
+
+   $text .= ")"; # finish branch
+   $text .= "\n"; # white space for readablity
+
+   return $text;
+}
+
 1;
 
 __END__
@@ -2174,6 +2227,53 @@ be passed down to all subsequient nodes, untill a new value is set.
 
 =back
 
+=head1 EXTENDING Games::SGF
+
+This is done by inheritance. You use the engine, but override the game
+specific features related to point, stone, and move.
+
+A Simple template is shown below:
+
+  package MySGFGame;
+  require Games::SGF;
+  no warnings 'redefine';
+
+  our( @ISA ) = ('Games::SGF');
+
+  sub new {
+     my $inv = shift;
+     my $class = ref $inv || $inv;
+     my $self = $class->SUPER::new(@_);
+
+     # Add Tags
+     $self->addTag('TB', $self->T_NONE, $self->V_POINT,
+         $self->VF_EMPTY | $self->VF_LIST | $self->VF_OPT_COMPOSE);
+
+     # more tags
+     
+     # Add Callbacks
+
+     $self->addPointRead(\&pointRead);
+     $self->addStoneRead(\&stoneRead);
+     $self->addMoveRead(\&moveRead);
+
+
+     $self->addPointCheck(\&pointCheck);
+     $self->addStoneCheck(\&stoneCheck);
+     $self->addMoveCheck(\&moveCheck);
+
+     $self->addPointWrite(\&pointWrite);
+     $self->addStoneWrite(\&stoneWrite);
+     $self->addMoveWrite(\&moveWrite);
+
+     return bless $self, $class; # Makes $self your class
+  }
+  # define the Callbacks
+  # ...
+  #
+  # define move, point, stone
+  # ...
+
 =head1 ASSUMPTIONS
 
 =over
@@ -2187,52 +2287,7 @@ if it was not true.
 
 =head1 TODO and KNOWN Problems
 
-=over
-
-=item Write Test Code
-
-Inheritence
-
-Game Specific Modules
-
-
-
-=item Add methods for auto detecting gamemode, and FF[4]
-
-Could change the inheritance method to registering a class with a
-game mode.
-
-=item finish override methods
-
-=over
-
-=item move
-
-=item stone
-
-=item point 
-
-=back
-
-The purpose of these subs is for users. they should map user structs
-to intnernal structs. The L</compose> method should be the template for
-functionality.
-
-The default behavior will be to treat the SGF value string as the user
-format. This will inturn call the _typeRead method and _typeWrite
-methods.
-
-Forexample the default use would look like:
-
-  $sgf->property("B", $sgf->move("ab") );
-  my $move = $sgf->move($sgf->property("B") );
-
-When overrode it should look like:
-
-  $sgf->property("B", $sgf->move(1,2) );
-  my($x, $y) = $sgf->move( $sgf->property("B"));
-
-=back
+=head2 Write Game Specific Modules
 
 =head1 ALSO SEE
 
@@ -2251,3 +2306,44 @@ David Whitcomb, C<< <whitcode at gmail.com> >>
 Please report any bugs or feature requests to C<bug-games-sgf at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Games-SGF>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
+
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Games::SGF
+
+
+You can also look for information at:
+
+=over 4
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Games-SGF>
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Games-SGF>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/Games-SGF>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/Games-SGF>
+
+=back
+
+
+=head1 ACKNOWLEDGEMENTS
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2008 David Whitcomb, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+

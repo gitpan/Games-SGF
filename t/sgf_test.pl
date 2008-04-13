@@ -24,7 +24,15 @@ sub tag_eq {
    TAG: foreach my $t( keys %tags ) {
       # get the property value
       my $values = $sgf->property($t);
-      
+      if( not( defined $tags{$t} ) ) {
+        if( $values ) {
+           fail( "$t - name" );
+           diag( "Expected no tag\nGot " . Dumper $values );
+        } else {
+           pass( "$t - name");
+        }
+        next TAG;
+      }
       # adds array ref if not ref'ed
       # blessed $refs count as a single item
       if( not( ref $tags{$t}) or blessed($tags{$t}) ) {

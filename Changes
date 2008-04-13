@@ -55,3 +55,23 @@ Revision history for Games-SGF
         Added inherit.t
         Fixed some bugs related to inherited tags
         Added example/sgf_plit.pl
+        
+        4/02/08 -released
+        set to Beta
+
+0.06
+        4/05/08
+        Wrote more tests, and fixed bugs that poped up
+
+        4/06/08
+        Added Games::SGF::Util
+        Added t/util.t
+        Added gotoRoot to Games::SGF
+        Changed nextGame and prevGame to use Games::SGF
+        Changed tests to use gotoRoot
+        Restructured SGF.pm
+        Made Build.pm Compatible with Makefile.PL
+        Added Pod::Coverage, Test::Pod, and Test::Pod::Coverage to PRE_REQ
+
+        4/07/08
+        Worked on SGF.pm's POD

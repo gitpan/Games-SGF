@@ -1,4 +1,4 @@
-use Test::More tests => 183;                      # last test to print
+use Test::More tests => 187;                      # last test to print
 use Games::SGF;
 use Data::Dumper;
 use warnings;
@@ -15,7 +15,7 @@ AB[dp][ep][eq]AW[do][eo][fp][fq]PL[B]
 (
 ;W[hq];B[hp];W[ip]LB[fo:A]C[Some Comment \\]: colen for good messure
  with a needed escape]FG[]
-;B[iq];W[hr]
+;B[iq];W[hr]GW[2]
 )
 )
 (;GM[1]FF[4]C[NextGame])
@@ -111,7 +111,9 @@ sub test_nav {
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "2-$name",
-      W => $sgf->move("hr"));
+      W => $sgf->move("hr"),
+      GW => $sgf->DBL_EMPH
+   );
    
    # move to prev node and check
    ok($sgf->prev, "prev-$name");
