@@ -10,27 +10,24 @@ my $sgf_in = <<SGF;
 )
 SGF
 
-my $sgf = new Games::SGF();
+my $sgf = new Games::SGF(Warn => 0, Debug => 0);
 
 ok( $sgf->readText($sgf_in), "Read SGF_IN");
 testNav($sgf, 2);
 $sgf->gotoRoot;
 ok( $sgf->setProperty("PM"), "unset PM" );
-if( $sgf->err ) {
-   diag($sgf->err);
-   $sgf->err("");
+if( $sgf->Fatal ) {
+   diag($sgf->Fatal);
 }
 ok( not( $sgf->property("PM")), "should not fetch");
-$sgf->err("");
 ok( $sgf->setProperty("PM", 3), "PM to 3" );
-if( $sgf->err ) {
-   diag($sgf->err);
-   $sgf->err("");
+if( $sgf->Fatal ) {
+   diag($sgf->Fatal);
 }
 
 my $sgf_out;
 ok( $sgf_out = $sgf->writeText, "Writing Text");
-$sgf = new Games::SGF();
+$sgf = new Games::SGF(Warn => 0, Debug => 0);
 ok( $sgf->readText($sgf_out), "Read SGF_OUT");
 testNav($sgf, 3);
 
@@ -45,19 +42,16 @@ sub testNav {
       C => "Some Prop",
       PM => $pm
    );
-   $sgf->err("");
    ok($sgf->next, "goto second node");
    tag_eq( $sgf, "Second Node",
       B => $sgf->move('ab'),
       PM => $pm
    );
-   $sgf->err("");
    ok($sgf->gotoVariation(0), "First Branch");
    tag_eq( $sgf, "First Branch First Node",
       W => $sgf->move('fg'),
       PM => $pm
    );
-   $sgf->err("");
    ok($sgf->gotoParent, "Going to Parent");
    ok($sgf->gotoVariation(1), "Second Branch");
    tag_eq( $sgf, "Second Branch First Node",

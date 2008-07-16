@@ -12,7 +12,7 @@ Text
 THan\\ may be on multipl\\e lines])
 SGF
 
-my $sgf = new Games::SGF();
+my $sgf = new Games::SGF(Warn => 0, Debug => 0);
 
 ok( $sgf->readText($sgf_in), "Read File");
 tag_eq( $sgf, "Root Node",

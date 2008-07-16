@@ -7,34 +7,34 @@ my $sgf_in = <<SGF;
 SGF
 
 # create Parsers
-my $parser = new Games::SGF(debug => 1);
+my $parser = new Games::SGF(Warn => 0, Debug => 0);
 
 ok( $parser, "Create Parser Object" );
-diag( $parser->err ) if $parser->err;
+diag( $parser->Fatal ) if $parser->Fatal;
 
 # add tags to parsers
 ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
-diag( $parser->err ) if $parser->err;
+diag( $parser->Fatal ) if $parser->Fatal;
 
 # read in $sgf_in
 ok( $parser->readText($sgf_in), "Read SGF");
-diag( $parser->err ) if $parser->err;
+diag( $parser->Fatal ) if $parser->Fatal;
 test_nav( $parser, "parse");
 
 $parser->gotoRoot;
 
 ok($parser->next, "moving up a node");
-   diag($parser->err) if $parser->err;
+   diag($parser->Fatal) if $parser->Fatal;
 ok($parser->next, "moving up a node");
-   diag($parser->err) if $parser->err;
+   diag($parser->Fatal) if $parser->Fatal;
 ok($parser->next, "moving up a node");
-   diag($parser->err) if $parser->err;
+   diag($parser->Fatal) if $parser->Fatal;
 ok($parser->splitBranch, "splitting");
-   diag($parser->err) if $parser->err;
+   diag($parser->Fatal) if $parser->Fatal;
 ok($parser->addVariation, "adding variation");
-   diag($parser->err) if $parser->err;
+   diag($parser->Fatal) if $parser->Fatal;
 ok($parser->property("W", $parser->move("ab")), "adding prop");
-   diag($parser->err) if $parser->err;
+   diag($parser->Fatal) if $parser->Fatal;
 
 
 $parser->gotoRoot;
@@ -49,11 +49,11 @@ sub test_nav {
    tag_eq( $sgf, $name,
       KM => [5] );
    ok($sgf->next, "next $name");
-   diag($sgf->err) if $sgf->err;
+   diag($sgf->Fatal) if $sgf->Fatal;
    tag_eq( $sgf, $name, W => $sgf->move("df") );
 
    ok($sgf->next, "next1 $name");
-   diag($sgf->err) if $sgf->err;
+   diag($sgf->Fatal) if $sgf->Fatal;
    tag_eq( $sgf, $name, B => $sgf->move("aa") );
 
    if($passTwo) {
@@ -65,12 +65,12 @@ sub test_nav {
       ok($sgf->flatten, "flatten out variation");
    }
       ok($sgf->next, "next2 $name");
-      diag($sgf->err) if $sgf->err;
+      diag($sgf->Fatal) if $sgf->Fatal;
 print Dumper $parser;
    tag_eq( $sgf, $name, AW => [$sgf->stone("ab"),$sgf->stone("ac")] );
 
    ok($sgf->next, "next3 $name");
-   diag($sgf->err) if $sgf->err;
+   diag($sgf->Fatal) if $sgf->Fatal;
    tag_eq( $sgf, $name, CR => [
                   $sgf->point("aa"),
                   $sgf->compose($sgf->point("ac"),

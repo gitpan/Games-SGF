@@ -3,7 +3,7 @@ use Games::SGF;
 use Games::SGF::Go;
 use Data::Dumper;
 
-my $sgf = new Games::SGF(debug => 1);
+my $sgf = new Games::SGF(Warn => 0,Debug => 0);
 my( $pt, $st, $mv );
 
 ok( $pt = $sgf->point("aa"), "Make point");
@@ -18,7 +18,7 @@ ok( $mv = $sgf->move("aa"), "Make move");
 ok( $sgf->isMove($mv), "Check move");
 ok( $sgf->move($mv) eq "aa", "Invert move");
 
-$sgf = new Games::SGF::Go(debug => 1);
+$sgf = new Games::SGF::Go(Warn => 0, Debug => 0);
 ( $pt, $st, $mv ) = ();
 my @cords;
 

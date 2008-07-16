@@ -7,7 +7,7 @@ my $sgf_in = <<SGF;
 (;GM[1]FF[4]AP[qGo:1.5.4]ST[1]
 SZ[19]HA[0]KM[6.5]OT[20 per move]
 PW[GNU Go 3.6]PB[Unknown]RE[Void]
-CA[UTF-8]AW[aa][ab][ac]AE[ab]
+CA[UTF-8]AW[aa][ab]AW[ac]AE[ab][cc:dd]
 ;B[pd]BL[20]OB[1]
 ;W[dp]WL[20]OW[1]
 ;B[pp]BL[20]OB[1]
@@ -17,13 +17,13 @@ CA[UTF-8]AW[aa][ab][ac]AE[ab]
 ;B[QL]BL[20]OB[1]
 ;W[];B[])
 SGF
-my $sgf = new Games::SGF::Go(debug =>1);
+my $sgf = new Games::SGF::Go(Warn => 0, Debug => 0);
 
 ok( $sgf->readText($sgf_in), "Read SGF");
 nav($sgf);
 my $sgf_out;
 ok($sgf_out = $sgf->writeText, "writing SGF");
-$sgf = new Games::SGF::Go(debug => 1);
+$sgf = new Games::SGF::Go(Warn => 0,Debug => 0);
 ok( $sgf->readText($sgf_out), "Read SGF Out");
 nav($sgf);
 
@@ -46,7 +46,8 @@ sub nav {
       AW => [  $sgf->stone(0,0),
                $sgf->stone(0,1),
                $sgf->stone(0,2) ],
-      AE => $sgf->point(0,1),
+      AE => [  $sgf->point(0,1),
+               $sgf->compose($sgf->point(2,2),$sgf->point(3,3)) ],
    );
    #print Dumper $sgf;
    test_moves( $sgf, "Move",

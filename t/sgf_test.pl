@@ -42,7 +42,7 @@ sub tag_eq {
       # actually test the value
       if( not $values ) {
          fail( "$t - $name" );
-         diag( " Parser returned error: " . $sgf->err);
+         diag( " Parser returned error: " . $sgf->Fatal);
          next TAG;
       }
       my( $pass, $str ) = deep_test( $values, $tags{$t} );

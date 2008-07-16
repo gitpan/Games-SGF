@@ -22,8 +22,8 @@ AB[dp][ep][eq]AW[do][eo][fp][fq]PL[B]
 SGF
 
 # create Parsers
-my $parser1 = new Games::SGF();
-my $parser2 = new Games::SGF();
+my $parser1 = new Games::SGF(Warn => 0, Debug => 0);
+my $parser2 = new Games::SGF(Warn => 0, Debug => 0);
 
 ok( $parser1, "Create Parser Object 1" );
 ok( $parser2, "Create Parser Object 2" );

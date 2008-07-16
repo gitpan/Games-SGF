@@ -11,7 +11,7 @@ my $sgf_in = <<SGF;
  (;W[dd]C[Keep])
 )
 SGF
-my $util = new Games::SGF::Util();
+my $util = new Games::SGF::Util(Warn => 0, Debug => 0);
 my $sgf = $util->sgf;
 ok( $sgf->readText($sgf_in), "Read File");
 nav( $sgf, "Keep", "Some","body","Keep");

@@ -75,3 +75,9 @@ Revision history for Games-SGF
 
         4/07/08
         Worked on SGF.pm's POD
+
+0.07
+        07/16/08
+        Updated Debuging API
+        Fixed AW[aa]AW[bb] Handling
+        Fixed some other buggs as noticed

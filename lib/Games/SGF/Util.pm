@@ -10,11 +10,11 @@ Games::SGF::Util - Utility pack for Games::SGF objects
 
 =head1 VERSION
 
-Version 0.06
+Version 0.07
 
 =cut
 
-our $VERSION = 0.06;
+our $VERSION = 0.07;
 
 
 =head1 SYNOPSIS
@@ -48,8 +48,10 @@ will create a new L<Games::SGF> object to work with.
 sub new {
    my $inv = shift;
    my $class = ref $inv || $inv;
-   my $sgf = shift;
-   $sgf ||= new Games::SGF();
+   my( %opts ) = @_;
+   my $sgf = $opts{'SGF'};
+   delete $opts{'SGF'};
+   $sgf ||= Games::SGF->new(%opts);
    return bless \$sgf, $class;
 }
 
@@ -218,10 +220,6 @@ L<http://cpanratings.perl.org/d/Games-SGF>
 L<http://search.cpan.org/dist/Games-SGF>
 
 =back
-
-
-=head1 ACKNOWLEDGEMENTS
-
 
 =head1 COPYRIGHT & LICENSE
 

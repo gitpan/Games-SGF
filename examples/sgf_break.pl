@@ -43,9 +43,9 @@ HELP
 
 my $results = [];
 my $cache = [];
-my $sgf = new Games::SGF::Go(debug => $debug);
+my $sgf = new Games::SGF::Go(Warn => $debug, Debug => $debug);
 $sgf->readFile($filename)
-   or die "Failed to read '$filename': " . $sgf->err . "\n";
+   or die "Failed to read '$filename': " . $sgf->Fatal . "\n";
 {
    if( $num == 0 ) {
       last;
@@ -59,7 +59,6 @@ $sgf->readFile($filename)
       my $cord = $move->[0];
       addNode($sgf->C_WHITE, $cord );
    }
-   $sgf->err("");
    if( $sgf->next ) {
       redo;
    } elsif( $sgf->variations ) {
@@ -104,7 +103,7 @@ sub addNode {
    }
    if( not $added ) {
       print "New SGF\n";
-      my $sgf = new Games::SGF::Go(debug => $debug);
+      my $sgf = new Games::SGF::Go(Warn => $debug, Debug => $debug);
       push @$results, $sgf;
       push @{$cache->[@$results -1]}, $cords;
       $sgf->addGame;

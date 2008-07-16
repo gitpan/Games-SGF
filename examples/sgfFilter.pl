@@ -107,16 +107,16 @@ HELP
 }
 # now do the work
 
-my $sgf = new Games::SGF::Go(debug => $debug);
-my $util = new Games::SGF::Util($sgf);
+my $sgf = new Games::SGF::Go(Warn => $debug, Debug => $debug);
+my $util = new Games::SGF::Util(SGF => $sgf);
 if( $input ) {
    $sgf->readFile($input)
-      or die "Failed to read '$input': " . $sgf->err . "\n";
+      or die "Failed to read '$input': " . $sgf->Fatal . "\n";
 } else {
    my $text = "";
    $text .= $_ while <STDIN>;
    $sgf->readText($text)
-      or die "Failed to read SDTIN: " . $sgf->err . "\n";
+      or die "Failed to read SDTIN: " . $sgf->Fatal . "\n";
 }
 
 if( $mode eq 'kgs-comment') {
@@ -138,11 +138,11 @@ if( $mode eq 'kgs-comment') {
 
 if( $output ) {
    $sgf->writeFile($input)
-      or die "Failed to read '$output': " . $sgf->err . "\n";
+      or die "Failed to read '$output': " . $sgf->Fatal . "\n";
 } else {
    my $text = "";
    $text = $sgf->writeText
-      or die "Failed to read SDTOUT: " . $sgf->err . "\n";
+      or die "Failed to read SDTOUT: " . $sgf->Fatal . "\n";
    print $text;
 }
 
