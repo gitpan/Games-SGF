@@ -66,6 +66,9 @@ sgf_break options:
                         this pattern. If the replacement is not suplied it will
                         be replaced with an empty string.
 
+                        If the resulting STRING is empty the entire comment
+                        will be removed.
+
    tags                 Removes Specified Tags
 
       OPTIONS

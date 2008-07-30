@@ -18,12 +18,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
 
-our $VERSION = 0.07;
+our $VERSION = 0.08;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -394,6 +394,52 @@ sub addTag {
 
    return 1;
 }
+
+=head3 redefineTag
+
+  $sgf->redefineTag($tag, $type, $value, $value_flags, $attribute);
+
+This will overwrite the flags set for C<$tagname>. If one of the args is unset,
+it will be unaltered. For example:
+
+  $sgf->redefineTag($tag, , , $flags);
+
+Will reset C<$tag>'s $flags leaving all other properties untouched.
+
+The property fields are the same defined the same as L</addTag>.
+
+=cut
+
+sub redefineTag {
+   my $self = shift;
+   $self->Debug("redefineTag(" . join( ", ", @_ ) . " )" );
+   $self->_clear;
+   my $tagname = shift;
+   my $type = shift;
+   my $value = shift;
+   my $value_flags = shift;
+   my $attrib = shift;
+   if(exists $ff4_properties{$tagname} ) {# ff4_properties
+      $self->{'tags'}->{$tagname}->{'type'} = defined $type ? $type : $ff4_properties{$tagname}->{'type'};
+      $self->{'tags'}->{$tagname}->{'value'} = defined $value ? $value :  $ff4_properties{$tagname}->{'value'};
+      $self->{'tags'}->{$tagname}->{'value_flags'} = defined $value_flags ? $value_flags : $ff4_properties{$tagname}->{'value_flags'};
+      $self->{'tags'}->{$tagname}->{'attrib'} = defined $attrib ? $attrib : $ff4_properties{$tagname}->{'attrib'};
+      return 1;
+   } elsif( exists $self->{'tags'}->{$tagname} ) {
+      $self->{'tags'}->{$tagname}->{'type'} ||= $type; 
+      $self->{'tags'}->{$tagname}->{'value'} ||= $value;
+      $self->{'tags'}->{$tagname}->{'value_flags'} ||= $value_flags;
+      $self->{'tags'}->{$tagname}->{'attrib'} ||= $attrib;
+      return 1;
+   } else {
+      $self->Fatal("redefineTag($tagname, " . join( ", ", @_ ) . " )" .
+            ": FAILED\t\t$tagname does not exist" );
+      return 0;
+   }
+
+   return 1;
+}
+
 
 =head3 setPointRead
 
@@ -999,7 +1045,6 @@ This is used for adding a variation of move C<$n>:
 
   $sgf->splitBranch($n);
   $sgf->addVariation;
-  $sgf->addNode;
   # set some node properties
 
 The above code will add a variation on the a node in the middle of a node
@@ -1008,12 +1053,12 @@ sequence in a branch.
 Returns 1 on success and 0 on Failure.
 
 =cut
-#TODO Fix documentation
+
 sub splitBranch {
    my $self = shift;
-   $self->Debug("splitBranch( )");
    $self->_clear;
    my $n = $self->{'node'};
+   $self->Debug("splitBranch( $n )");
    my $new_branch = [[],[]];
    my $branch = $self->_getBranch();
    if( $n > 0 and $n < @{$branch->[0]} ) {
@@ -1219,10 +1264,6 @@ This is not the same as setting to a empty value.
 
 =cut
 
-#TODO fix inherit
-#        structure should be {Tag}{Branch}{Node}
-#     so that you 
-
 sub setProperty {
    my $self = shift;
    $self->Debug("setProperty( " . join( ", ", @_) .")");
@@ -1384,8 +1425,6 @@ need for these methods to be overwritten.
 
 =cut
 
-#TODO match /^Games::SGF::.*move$/
-
 sub isPoint {
    my $self = shift;
    $self->_clear;
@@ -1423,8 +1462,6 @@ the read and write callbacks for point,stone, and move.
 If the SGF representation is not what you desire then override these.
 
 =cut
-
-#TODO remove blessed status before passing to _typeWrite
 
 sub point {
    my $self = shift;
@@ -1881,19 +1918,18 @@ sub _typeWrite {
    # return $struct;
 }
 
-
 sub _getTagFlags {
    my $self = shift;
    my $tag = shift;
-   if( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'value_flags'} ) {
-         return $ff4_properties{$tag}->{'value_flags'};
+   if( exists( $self->{'tags'}->{$tag}) ) {
+      if( $self->{'tags'}->{$tag}->{'value_flags'} ) {
+         return $self->{'tags'}->{$tag}->{'value_flags'};
       } else {
          return 0;
       }
-   } elsif( exists( $self->{'tags'}->{$tag}) ) {
-      if( $self->{'tags'}->{$tag}->{'value_flags'} ) {
-         return $self->{'tags'}->{$tag}->{'value_flags'};
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'value_flags'} ) {
+         return $ff4_properties{$tag}->{'value_flags'};
       } else {
          return 0;
       }
@@ -1904,13 +1940,13 @@ sub _getTagFlags {
 sub _getTagType {
    my $self = shift;
    my $tag = shift;
-   if( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'type'} ) {
-         return $ff4_properties{$tag}->{'type'};
-      }
-   } elsif( exists( $self->{'tags'}->{$tag}) ) {
+   if( exists( $self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'type'} ) {
          return $self->{'tags'}->{$tag}->{'type'};
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'type'} ) {
+         return $ff4_properties{$tag}->{'type'};
       }
    }
    # default Type
@@ -1919,13 +1955,13 @@ sub _getTagType {
 sub _getTagAttribute {
    my $self = shift;
    my $tag = shift;
-   if( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'attrib'} ) {
-         return $ff4_properties{$tag}->{'attrib'};
-      }
-   } elsif( exists($self->{'tags'}->{$tag}) ) {
+   if( exists($self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'attrib'} ) {
          return $self->{'tags'}->{$tag}->{'attrib'};
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'attrib'} ) {
+         return $ff4_properties{$tag}->{'attrib'};
       }
    }
    return A_NONE; # don't set inherit
@@ -1933,13 +1969,13 @@ sub _getTagAttribute {
 sub _getTagValueType {
    my $self = shift;
    my $tag = shift;
-   if( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'value'} ) {
-         return $ff4_properties{$tag}->{'value'};
-      }
-   } elsif( exists( $self->{'tags'}->{$tag}) ) {
+   if( exists( $self->{'tags'}->{$tag}) ) {
       if( $self->{'tags'}->{$tag}->{'value'} ) {
          return $self->{'tags'}->{$tag}->{'value'};
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'value'} ) {
+         return $ff4_properties{$tag}->{'value'};
       }
    }
    return V_TEXT; # allows and preserves any string
@@ -2483,10 +2519,6 @@ if it was not true.
 =head2 Documentation
 
 The Documentation needs to be reviewed for accuracy
-
-=head2 Debug statements
-
-They may not be as informative as could be.
 
 =head2 Empty Tags
 

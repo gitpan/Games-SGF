@@ -7,15 +7,15 @@ no warnings 'redefine';
 
 =head1 NAME
 
-Games::SGF::GO - A Go Specific SGF Parser
+Games::SGF::Go - A Go Specific SGF Parser
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 our( @ISA ) = ('Games::SGF');
-our $VERSION = 0.07;
+our $VERSION = 0.08;
 
 =head1 SYNOPSIS
 
@@ -84,15 +84,18 @@ sub new {
    # Komi
    $self->addTag('KM', $self->T_GAME_INFO, $self->V_REAL);
 
-   # add Go CallBacks
+   
+   # redefine tags so that stone becomes point
+   $self->redefineTag('AB', "", $self->V_POINT,
+               $self->VF_LIST | $self->VF_OPT_COMPOSE);
+   $self->redefineTag('AW', "", $self->V_POINT,
+               $self->VF_LIST | $self->VF_OPT_COMPOSE);
 
+   # add Go CallBacks
    # Read
    $self->setPointRead( sub { 
          return $self->point( _readPoint($_[0]) );
-      });
-   $self->setStoneRead( sub {
-         return $self->stone( _readPoint($_[0]) );
-      });
+   });
    $self->setMoveRead( sub {
       if( $_[0] eq "" ) {
          return $self->pass;
@@ -103,7 +106,7 @@ sub new {
 
    # Check
    $self->setPointCheck(\&_checkPoint);
-   $self->setStoneCheck(\&_checkPoint);
+#   $self->setStoneCheck(\&_checkPoint);
    $self->setMoveCheck( sub {
       if( $self->isPass($_[0]) ) {
          return 1;
@@ -114,7 +117,7 @@ sub new {
 
    # Write
    $self->setPointWrite( \&_writePoint );
-   $self->setStoneWrite( \&_writePoint );
+#   $self->setStoneWrite( \&_writePoint );
    $self->setMoveWrite( sub {
          if( $self->isPass( $_[0] ) ) {
             return "";
@@ -208,14 +211,14 @@ sub move {
       return bless [@_], 'Games::SGF::Go::move';
    }
 }
-sub stone {
-   my $self = shift;
-   if( $self->isStone($_[0]) ) {
-      return @{$_[0]};
-   } else {
-      return bless [@_], 'Games::SGF::Go::stone';
-   }
-}
+#sub stone {
+#   my $self = shift;
+#   if( $self->isStone($_[0]) ) {
+#      return @{$_[0]};
+#   } else {
+#      return bless [@_], 'Games::SGF::Go::stone';
+#   }
+#}
 
 =head2 isPass
 

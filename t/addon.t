@@ -1,12 +1,12 @@
-use Test::More tests => 21;                      # last test to print
+use Test::More tests => 40;                      # last test to print
 use Games::SGF;
 require 't/sgf_test.pl';
 my $sgf_in = <<SGF;
-(;KM[5.00];W[df];B[aa];AW[ab][ac];CR[aa][ac:cd])
+(;KM[5.00];W[df];B[aa];AW[ab][ac];CR[aa][ac:cd]AE[aa:cc])
 SGF
 #TODO make a test check and write callback
 # create Parsers
-my $parser = new Games::SGF(Fatal => 0, Warn => 0, Debug => 0);
+my $parser = Games::SGF->new(Fatal => 0, Warn => 0, Debug => 0);
 
 ok( $parser, "Create Parser Object" );
 diag( $parser->Fatal ) if $parser->Fatal;
@@ -16,24 +16,52 @@ ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
 diag( $parser->Fatal ) if $parser->Fatal;
 
 # try adding non CODE callbacks
-ok( not( $parser->setStoneRead("something")), "Add Bad Stone Parse");
-ok( not( $parser->setMoveRead("Something")), "Add Bad Move Parse");
-ok( not( $parser->setPointRead("Something")), "Add Bad Point Parse");
+ok( not( $parser->setStoneRead("something")), "Add Bad Read Stone");
+ok( not( $parser->setMoveRead("Something")), "Add Bad Read Move");
+ok( not( $parser->setPointRead("Something")), "Add Bad Read Point");
+
+ok( not( $parser->setStoneCheck("something")), "Add Bad Check Stone");
+ok( not( $parser->setMoveCheck("Something")), "Add Bad Check Move");
+ok( not( $parser->setPointCheck("Something")), "Add Bad Check Point");
+
+ok( not( $parser->setStoneWrite("something")), "Add Bad Write Stone");
+ok( not( $parser->setMoveWrite("Something")), "Add Bad Write Move");
+ok( not( $parser->setPointWrite("Something")), "Add Bad Write Point");
 
 # add point, stone, move callbacks
-ok( $parser->setStoneRead(\&parsepoint), "Add Stone Parse");
+ok( $parser->setStoneRead(\&parsepoint), "Add Read Stone");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->setMoveRead(\&parsepoint), "Add Read Move");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->setPointRead(\&parsepoint), "Add Read Point");
 diag( $parser->Fatal ) if $parser->Fatal;
 
-ok( $parser->setMoveRead(\&parsepoint), "Add Move Parse");
+ok( $parser->setStoneCheck(\&checkpoint), "Add Check Stone");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->setMoveCheck(\&checkpoint), "Add Check Move");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->setPointCheck(\&checkpoint), "Add Check Point");
 diag( $parser->Fatal ) if $parser->Fatal;
 
-ok( $parser->setPointRead(\&parsepoint), "Add Point Parse");
+ok( $parser->setStoneWrite(\&writepoint), "Add Write Stone");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->setMoveWrite(\&writepoint), "Add Write Move");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->setPointWrite(\&writepoint), "Add Write Point");
 diag( $parser->Fatal ) if $parser->Fatal;
 
 # redefining subroutines
-ok( not($parser->setStoneRead(\&parsepoint)), "Readding Stone Parse");
-ok( not($parser->setMoveRead(\&parsepoint)), "Readding Move Parse");
-ok( not($parser->setPointRead(\&parsepoint)), "Readding Point Parse");
+ok( not($parser->setStoneRead(\&parsepoint)), "redefine reading Stone");
+ok( not($parser->setMoveRead(\&parsepoint)), "redefine reading Move");
+ok( not($parser->setPointRead(\&parsepoint)), "redefine reading Point");
+
+ok( not($parser->setStoneRead(\&checkpoint)), "redefine checking Stone");
+ok( not($parser->setMoveRead(\&checkpoint)), "redefine checking Move");
+ok( not($parser->setPointRead(\&checkpoint)), "redefine checking Point");
+
+ok( not($parser->setStoneRead(\&writepoint)), "redefine writing Stone");
+ok( not($parser->setMoveRead(\&writepoint)), "redefine writing Move");
+ok( not($parser->setPointRead(\&writepoint)), "redefine writing Point");
 
 # read in $sgf_in
 ok( $parser->readText($sgf_in), "Read SGF");
@@ -45,7 +73,18 @@ sub parsepoint {
    my( $x, $y) = split //, $value;
    return [ ord($x) - ord('a'), ord($y) - ord('a') ];
 }
- 
+sub checkpoint {
+   my $ref = shift;
+   if( ref $ref && $ref->[1] >= 0 && $ref->[0] >= 0 ) {
+      return 1;
+   }
+   return 0;
+}
+sub writepoint {
+   my $ref = shift;
+   return chr( $ref->[0] + ord('a')) . chr( $ref->[1] + ord('a'));
+
+}
 
 
 sub test_nav {
@@ -68,5 +107,5 @@ sub test_nav {
 
    ok($sgf->next, "next3 $name");
    diag($sgf->Fatal) if $sgf->Fatal;
-   tag_eq( $sgf, $name, CR => [[0,0],$sgf->compose([0,2],[2,3])] );
+   tag_eq( $sgf, $name, CR => [[0,0],$sgf->compose([0,2],[2,3])], AE => $sgf->compose([0,0], [2,2]));
 }
