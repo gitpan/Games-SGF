@@ -1,4 +1,4 @@
-use Test::More tests => 187;                      # last test to print
+use Test::More tests => 186;                      # last test to print
 use Games::SGF;
 use Data::Dumper;
 use warnings;
@@ -23,14 +23,17 @@ SGF
 
 # create Parsers
 my $parser1 = new Games::SGF(Warn => 0, Debug => 0);
-my $parser2 = new Games::SGF(Warn => 0, Debug => 0);
+#my $parser2 = new Games::SGF(Warn => 0, Debug => 0);
 
 ok( $parser1, "Create Parser Object 1" );
-ok( $parser2, "Create Parser Object 2" );
+#ok( $parser2, "Create Parser Object 2" );
 
 # add tags to parsers
 ok( $parser1->addTag('KM', $parser1->T_GAME_INFO, $parser1->V_REAL ), "addTag");
-ok( $parser2->addTag('KM', $parser2->T_GAME_INFO, $parser2->V_REAL ), "addTag");
+#ok( $parser2->addTag('KM', $parser2->T_GAME_INFO, $parser2->V_REAL ), "addTag");
+
+my $parser2 = $parser1->clone;
+ok( $parser2, "Create copy of Object 1");
 
 # read in $sgf_in
 ok( $parser1->readText($sgf_in), "Read Initial SGF Text");

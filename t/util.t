@@ -1,4 +1,4 @@
-use Test::More tests => 33;
+use Test::More tests => 34;
 use Games::SGF;
 use Games::SGF::Util;
 use Data::Dumper;
@@ -11,27 +11,29 @@ my $sgf_in = <<SGF;
  (;W[dd]C[Keep])
 )
 SGF
-my $util = new Games::SGF::Util(Warn => 0, Debug => 0);
-my $sgf = $util->sgf;
+my $u = new Games::SGF::Util();
+ok( not( $u), "Correctly failed to create util object");
+
+my $sgf = Games::SGF->new();
+
 ok( $sgf->readText($sgf_in), "Read File");
 nav( $sgf, "Keep", "Some","body","Keep");
 
+my $util = Games::SGF::Util->new($sgf);
+$u = Games::SGF::Util->new($sgf);
 $util->filter( "C" , sub { $_[0] =~ s/ee//g; return $_[0];} );
+nav( $util->sgf(), "Kp", "Some","body","Kp");
 
-$sgf->gotoRoot;
+$u->sgf($util->sgf);
+$u->filter( "C" , sub { return $_[0] eq "body" ? undef : $_[0];} );
+nav( $u->sgf(), "Kp", "Some",undef,"Kp");
 
-nav( $sgf, "Kp", "Some","body","Kp");
-$util->filter( "C" , sub { return $_[0] eq "body" ? undef : $_[0];} );
-$sgf->gotoRoot;
-
-nav( $sgf, "Kp", "Some",undef,"Kp");
-$util->filter( "C" , undef );
-$sgf->gotoRoot;
-
-nav( $sgf);
+$u->filter( "C" , undef );
+nav( $u->sgf());
 
 sub nav {
    my $sgf = shift;
+   $sgf->gotoRoot;
    my( @c ) = @_;
 
    tag_eq( $sgf, "Root Node",

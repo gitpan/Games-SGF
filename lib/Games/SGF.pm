@@ -11,6 +11,7 @@ use enum qw(
          :T_=1 MOVE SETUP ROOT GAME_INFO NONE
          :A_=1 NONE INHERIT
          );
+use Clone::PP;
 
 =head1 NAME
 
@@ -18,12 +19,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.08
+Version 0.99
 
 =cut
 
 
-our $VERSION = 0.08;
+our $VERSION = 0.99;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -239,13 +240,30 @@ sub new {
    $self->{'collection'} = undef; 
    $self->{'parents'} = undef; 
    $self->{'node'} = undef;
+
+
+   # Default Warnings and Debug statments to silence
+
    $self->{'Fatal'} = exists $opts{'Fatal'} ? $opts{'Fatal'} : 1;
-   $self->{'Warn'} = exists $opts{'Warn'} ? $opts{'Warn'} : 1;
-   $self->{'Debug'} = exists $opts{'Debug'} ? $opts{'Debug'} : 1;
+   $self->{'Warn'} = exists $opts{'Warn'} ? $opts{'Warn'} : 0;
+   $self->{'Debug'} = exists $opts{'Debug'} ? $opts{'Debug'} : 0;
    $self->{'FatalErrors'} = [];
    $self->{'WarnErrors'} = [];
    $self->{'DebugErrors'} = [];
    return bless $self, $class;
+}
+
+=head2 clone
+
+  $sgf_copy = $sgf->clone;
+
+This will create a completely independent copy of the C<$sgf> object.
+
+=cut
+
+sub clone {
+   my $self = shift;
+   return Clone::PP::clone($self);
 }
 
 =head2 IO
@@ -1283,6 +1301,7 @@ sub setProperty {
    my $isComposable = $self->_maybeComposed($tag);
    # reasons to not set the property
    # set list values only if VF_LIST
+   # TODO: VF_LIST && VF_EMPTY????
    if( @values > 1 and not $flags & VF_LIST ) {
       $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCan't set list for non VF_LIST: ($tag, $flags : " . 
          join( ":", VF_EMPTY, VF_LIST, VF_OPT_COMPOSE) . ")");

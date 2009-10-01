@@ -3,6 +3,7 @@ package Games::SGF::Util;
 use warnings;
 use strict;
 use Games::SGF;
+no warnings 'redefine';
 
 =head1 NAME
 
@@ -10,11 +11,11 @@ Games::SGF::Util - Utility pack for Games::SGF objects
 
 =head1 VERSION
 
-Version 0.08
+Version 0.99
 
 =cut
 
-our $VERSION = 0.08;
+our $VERSION = 0.99;
 
 
 =head1 SYNOPSIS
@@ -38,20 +39,21 @@ This is a collection of useful methods for manipulating a Games::SGF object.
 =head2 new
 
   $util = new Games::SGF::Util($sgf);
-  $util = new Games::SGF::Util();
 
-This initializes a new Games::SGF::Util object. If no C<$sgf> is given then it
-will create a new L<Games::SGF> object to work with.
+This initializes a new Games::SGF::Util object. Will return C<undef> if C<$sgf>
+is no supplied.
 
 =cut
 
 sub new {
    my $inv = shift;
    my $class = ref $inv || $inv;
-   my( %opts ) = @_;
-   my $sgf = $opts{'SGF'};
-   delete $opts{'SGF'};
-   $sgf ||= Games::SGF->new(%opts);
+   my $sgf = shift;
+   if($sgf) {
+      $sgf = $sgf->clone(); # So we are not working with the actual sgf file
+   } else {
+      return undef;
+   }
    return bless \$sgf, $class;
 }
 
@@ -97,7 +99,8 @@ sub touch {
    my $self = shift;
    my $callback = shift;
    my $isRec = shift; # set if a recursive call
-   my $sgf = $self->sgf;
+   my $sgf = $$self;
+   $sgf->gotoRoot unless $isRec;
    
    # if this is first run 
    if( not $isRec ) {
@@ -166,14 +169,22 @@ sub filter {
 =head2 sgf
 
    $sgf = $util->sgf;
+   $sgf = $util->sgf($sgf)
 
-This returns the C<$sgf> object associated with C<$util>.
+This returns a clone of the C<$sgf> object associated with C<$util>, or sets the
+C<$sgf> object to a clone of object supplied.
 
 =cut
 
 sub sgf {
    my $self = shift;
-   return $$self;
+   my $sgf = shift;
+   if($sgf) {
+      $$self = $sgf->clone();
+      return $sgf;
+   }
+   $sgf = $$self;
+   return $sgf->clone();
 }
 1;
 __END__

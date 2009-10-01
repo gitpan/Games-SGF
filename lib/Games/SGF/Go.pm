@@ -11,11 +11,11 @@ Games::SGF::Go - A Go Specific SGF Parser
 
 =head1 VERSION
 
-Version 0.08
+Version 0.99
 
 =cut
 our( @ISA ) = ('Games::SGF');
-our $VERSION = 0.08;
+our $VERSION = 0.99;
 
 =head1 SYNOPSIS
 
@@ -211,14 +211,14 @@ sub move {
       return bless [@_], 'Games::SGF::Go::move';
    }
 }
-#sub stone {
-#   my $self = shift;
-#   if( $self->isStone($_[0]) ) {
-#      return @{$_[0]};
-#   } else {
-#      return bless [@_], 'Games::SGF::Go::stone';
-#   }
-#}
+sub stone {
+   my $self = shift;
+   if( $self->isStone($_[0]) ) {
+      return @{$_[0]};
+   } else {
+      return bless [@_], 'Games::SGF::Go::stone';
+   }
+}
 
 =head2 isPass
 

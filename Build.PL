@@ -8,6 +8,7 @@ my $build = Module::Build->new(
    requires => {
       'perl'         => '5.6.1',
       'enum'         => '1.016',
+      'Clone::PP'    => '1.02'
    },
    build_requires => {
       'Test::More'   => 0.70,

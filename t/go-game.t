@@ -1,4 +1,4 @@
-use Test::More tests => 67;
+use Test::More tests => 70;
 use Games::SGF::Go;
 use Data::Dumper;
 require "t/sgf_test.pl";
@@ -17,7 +17,26 @@ CA[UTF-8]AW[aa][AA]AW[ac]AE[ab][cc:dd]
 ;B[QL]BL[20]OB[1]
 ;W[];B[])
 SGF
-my $sgf = new Games::SGF::Go(Warn => 0, Debug => 0);
+my $s = new Games::SGF::Go(Warn => 0, Debug => 0);
+my $sgf = $s->new(Warn => 0, Debug => 0);
+
+
+### Test point code ###
+#
+#######################
+
+my $pt = $sgf->point(5,5);
+my(@c) = $sgf->point($pt);
+ok($c[0] == 5 && $c[1] == 5, "Point converage test");
+
+$pt = $sgf->move(5,5);
+(@c) = $sgf->move($pt);
+ok($c[0] == 5 && $c[1] == 5, "Move converage test");
+
+$pt = $sgf->stone(5,5);
+(@c) = $sgf->stone($pt);
+ok($c[0] == 5 && $c[1] == 5, "Stone converage test");
+
 
 ok( $sgf->readText($sgf_in), "Read SGF");
 nav($sgf);

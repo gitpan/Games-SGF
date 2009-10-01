@@ -1,4 +1,4 @@
-use Test::More tests => 40;                      # last test to print
+use Test::More tests => 42;                      # last test to print
 use Games::SGF;
 require 't/sgf_test.pl';
 my $sgf_in = <<SGF;
@@ -6,13 +6,18 @@ my $sgf_in = <<SGF;
 SGF
 #TODO make a test check and write callback
 # create Parsers
-my $parser = Games::SGF->new(Fatal => 0, Warn => 0, Debug => 0);
+my $p = Games::SGF->new(Fatal => 0, Warn => 0, Debug => 0);
+my $parser = $p->new(Fatal => 0, Warn => 0, Debug => 0);
 
 ok( $parser, "Create Parser Object" );
 diag( $parser->Fatal ) if $parser->Fatal;
 
 # add tags to parsers
 ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( not( $parser->redefineTag('something', $parser->T_GAME_INFO ) ), 'attempt to redefine nonexistant tag "something"');
+ok(  $parser->redefineTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ),
+   'attempt to redefine custom tag');
 diag( $parser->Fatal ) if $parser->Fatal;
 
 # try adding non CODE callbacks

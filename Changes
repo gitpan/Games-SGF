@@ -81,3 +81,14 @@ Revision history for Games-SGF
         Updated Debuging API
         Fixed AW[aa]AW[bb] Handling
         Fixed some other buggs as noticed
+
+0.08
+        07/30/08
+        Added redefineTag to Games::SGF
+        Allowed Games::SGF::Go to make stone 
+            types into point types using redefineTag.
+        Modified _getTag* to check $ff_properties first
+        Fixed and Added tests to:
+            t/addon.t
+            t/go-game.t
+            t/sgf_prop.t
