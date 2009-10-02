@@ -76,7 +76,7 @@ sub test_nav {
    ok($sgf->next, "1-$name");
    tag_eq( $sgf, $name,
       B => $sgf->move("go"),
-      DO => "" );
+      DO => $sgf->empty );
    ok($sgf->next, "1-$name");
    tag_eq( $sgf, $name,
       PL => $sgf->C_WHITE);
@@ -106,7 +106,7 @@ sub test_nav {
       LB => [$sgf->compose($sgf->point("fo"),"A")],
       C => ["Some Comment ]: colen for good messure
  with a needed escape"],
-      FG => "");
+      FG => $sgf->empty);
 
    ok($sgf->next, "2-$name");
    tag_eq( $sgf, "2-$name",

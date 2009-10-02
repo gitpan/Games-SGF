@@ -14,7 +14,7 @@ CA[UTF-8]AW[aa][AA]AW[ac]AE[ab][cc:dd]
 ;W[dc]WL[20]OW[1]
 ;B[cj]BL[20]OB[1]
 ;W[qn]WL[20]OW[1]
-;B[QL]BL[20]OB[1]
+;B[QL]BL[20]OB[1]DO[]
 ;W[];B[])
 SGF
 my $s = new Games::SGF::Go(Warn => 0, Debug => 0);

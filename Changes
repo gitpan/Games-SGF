@@ -92,3 +92,16 @@ Revision history for Games-SGF
             t/addon.t
             t/go-game.t
             t/sgf_prop.t
+
+0.99
+      09/30/09
+      Added clone method to Games::SGF, using Clone::PP
+      Added Games::SGF::Util, for useful functions
+      Added t/util.t for testing of Util.pm
+      Modified other tests to improve coverage
+
+0.991
+      10/02/09
+      Clean module, setting permissions, and removing uneeded files
+      Added $sgf->empty and $sgf->isEmpty, and incorperated them into the core 
+      Made sure _clear comes before the Debug statements

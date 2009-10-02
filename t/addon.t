@@ -1,4 +1,4 @@
-use Test::More tests => 42;                      # last test to print
+use Test::More tests => 46;                      # last test to print
 use Games::SGF;
 require 't/sgf_test.pl';
 my $sgf_in = <<SGF;
@@ -13,12 +13,19 @@ ok( $parser, "Create Parser Object" );
 diag( $parser->Fatal ) if $parser->Fatal;
 
 # add tags to parsers
-ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ), "addTag");
+ok($parser->addTag('KM', $parser->T_GAME_INFO, $parser->V_REAL, $parser->VF_EMPTY, $parser->A_INHERIT ), "addTag"); #new tag
 diag( $parser->Fatal ) if $parser->Fatal;
-ok( not( $parser->redefineTag('something', $parser->T_GAME_INFO ) ), 'attempt to redefine nonexistant tag "something"');
-ok(  $parser->redefineTag('KM', $parser->T_GAME_INFO, $parser->V_REAL ),
+ok( not( $parser->redefineTag('something', $parser->T_GAME_INFO ) ), 'attempt to redefine nonexistant tag "something"'); # redefine nonexist
+ok(  $parser->redefineTag('KM', $parser->T_GAME_INFO, $parser->V_DOUBLE, $parser->VF_LIST, $parser->A_NONE ), # redefine exist
    'attempt to redefine custom tag');
+ok(  $parser->redefineTag('KM',,,,), # redefine exist
+   'attempt to redefine custom tag again');
+ok($parser->redefineTag('KM', $parser->T_GAME_INFO, $parser->V_REAL, $parser->VF_NONE, $parser->A_NONE ), "fix tag"); #new tag
 diag( $parser->Fatal ) if $parser->Fatal;
+diag( $parser->Fatal ) if $parser->Fatal;
+ok( $parser->redefineTag("BR",,,,$parser->A_NONE ), "redefine ff4 tag" );
+diag( $parser->Fatal ) if $parser->Fatal;
+ok(not( $parser->addTag("WR", $parser->T_ROOT, $parser->V_REAL )), "try adding ff4 tag" );
 
 # try adding non CODE callbacks
 ok( not( $parser->setStoneRead("something")), "Add Bad Read Stone");

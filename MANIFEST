@@ -22,4 +22,3 @@ t/sgf_prop.t
 t/sgf_test.pl
 t/text.t
 t/util.t
-todo

@@ -11,11 +11,11 @@ Games::SGF::Util - Utility pack for Games::SGF objects
 
 =head1 VERSION
 
-Version 0.99
+Version 0.991
 
 =cut
 
-our $VERSION = 0.99;
+our $VERSION = 0.991;
 
 
 =head1 SYNOPSIS

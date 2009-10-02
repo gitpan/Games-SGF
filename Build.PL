@@ -6,7 +6,6 @@ my $build = Module::Build->new(
    license  => 'perl',
    create_makefile_pl => 'traditional',
    requires => {
-      'perl'         => '5.6.1',
       'enum'         => '1.016',
       'Clone::PP'    => '1.02'
    },

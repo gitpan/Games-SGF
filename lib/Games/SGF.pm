@@ -7,7 +7,7 @@ use enum qw(
          :C_=1 BLACK WHITE
          :DBL_=1 NORM EMPH
          :V_=1 NONE NUMBER REAL DOUBLE COLOR SIMPLE_TEXT TEXT POINT MOVE STONE
-         BITMASK:VF_=1 EMPTY LIST OPT_COMPOSE
+         BITMASK:VF_=0 NONE EMPTY LIST OPT_COMPOSE
          :T_=1 MOVE SETUP ROOT GAME_INFO NONE
          :A_=1 NONE INHERIT
          );
@@ -19,12 +19,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.99
+Version 0.991
 
 =cut
 
 
-our $VERSION = 0.99;
+our $VERSION = 0.991;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -279,8 +279,8 @@ This takes in a SGF formated string and parses it.
 sub readText {
    my $self = shift;
    my $text = shift;
-   $self->Debug("readText( <TEXT> )");
    $self->_clear;
+   $self->Debug("readText( <TEXT> )");
    $self->_read($text);
    if( $self->Fatal ) {
       return 0;
@@ -303,8 +303,8 @@ This will open the passed file, read it in then parse it.
 sub readFile {
    my $self = shift;
    my $filename = shift;
-   $self->Debug("readFile( '$filename' )" );
    $self->_clear;
+   $self->Debug("readFile( '$filename' )" );
    my $text;
    my $fh;
    if( not open $fh, "<", $filename ) {
@@ -329,8 +329,8 @@ Will return the current collection in SGF form;
 
 sub writeText {
    my $self = shift;
-   $self->Debug("writeText( <TEXT> )");
    $self->_clear;
+   $self->Debug("writeText( <TEXT> )");
    my $text = "";
    # foreach game
    foreach my $game ( @{$self->{'collection'}}) {
@@ -355,8 +355,8 @@ Will write the current game collection to $filename.
 sub writeFile {
    my $self = shift;
    my $filename = shift;
-   $self->Debug("writeFile( '$filename' )" );
    $self->_clear;
+   $self->Debug("writeFile( '$filename' )" );
    my $text;
    my $fh;
    if( not open $fh, ">", $filename ) {
@@ -399,9 +399,9 @@ The C<$attribute> is from the L</Attribute> List. Defaults to C<A_NONE>.
 sub addTag {
    my $self = shift;
    my $tagname = shift;
-   $self->Debug("addTag($tagname, " . join( ", ", @_ ) . " )" );
    $self->_clear;
-   if( exists $self->{'tags'}->{$tagname} ) {
+   $self->Debug("addTag($tagname, " . join( ", ", @_ ) . " )" );
+   if( exists $self->{'tags'}->{$tagname} or exists $ff4_properties{$tagname}) {
       $self->Fatal("addTag( $tagname ): FAILED\t\t$tagname already exists");
       return 0;
    }
@@ -430,8 +430,14 @@ The property fields are the same defined the same as L</addTag>.
 
 sub redefineTag {
    my $self = shift;
-   $self->Debug("redefineTag(" . join( ", ", @_ ) . " )" );
    $self->_clear;
+   {
+      my(@args ) = @_;
+      foreach(@args) {
+         $_ = "undef" unless defined $_;
+      }
+      $self->Debug("redefineTag(" . join( ", ", @args ) . " )" );
+   }
    my $tagname = shift;
    my $type = shift;
    my $value = shift;
@@ -444,10 +450,11 @@ sub redefineTag {
       $self->{'tags'}->{$tagname}->{'attrib'} = defined $attrib ? $attrib : $ff4_properties{$tagname}->{'attrib'};
       return 1;
    } elsif( exists $self->{'tags'}->{$tagname} ) {
-      $self->{'tags'}->{$tagname}->{'type'} ||= $type; 
-      $self->{'tags'}->{$tagname}->{'value'} ||= $value;
-      $self->{'tags'}->{$tagname}->{'value_flags'} ||= $value_flags;
-      $self->{'tags'}->{$tagname}->{'attrib'} ||= $attrib;
+
+      $self->{'tags'}->{$tagname}->{'type'} = $type if defined $type; 
+      $self->{'tags'}->{$tagname}->{'value'} = $value if defined $value;
+      $self->{'tags'}->{$tagname}->{'value_flags'} = $value_flags if defined $value_flags;
+      $self->{'tags'}->{$tagname}->{'attrib'} = $attrib if defined $attrib;
       return 1;
    } else {
       $self->Fatal("redefineTag($tagname, " . join( ", ", @_ ) . " )" .
@@ -728,8 +735,8 @@ game is the last game then returns 0 otherwise 1.
 
 sub nextGame {
    my $self = shift;
-   $self->Debug("nextGame( )");
    $self->_clear;
+   $self->Debug("nextGame( )");
    my $lastGame = @{$self->{'collection'}} - 1;
    my $curGame = $self->{'game'}; # first element is the address game num
    if( $curGame >= $lastGame ) { # on last game
@@ -754,8 +761,8 @@ game is the first game then returns 0 otherwise 1.
 
 sub prevGame {
    my $self = shift;
-   $self->Debug("prevGame( )");
    $self->_clear;
+   $self->Debug("prevGame( )");
    my $curGame = $self->{'game'}; # first element is the address game num
    if( $curGame <= 0 ) { # on first game
       $self->Warn("nextGame(  ): FAILED\t\tCurrently first game in collection");
@@ -777,8 +784,8 @@ This will move the pointer to the root node of the game tree.
 
 sub gotoRoot {
    my $self = shift;
-   $self->Debug("gotoRoot( )");
    $self->_clear;
+   $self->Debug("gotoRoot( )");
    $self->{'parents'} = [ $self->{'collection'}->[$self->{'game'}] ];
    $self->{'node'} = 0;
 }
@@ -795,8 +802,8 @@ Returns 0 if it is the last node in the branch, otherwise 1
 
 sub next {
    my $self = shift;
-   $self->Debug("next( )");
    $self->_clear;
+   $self->Debug("next( )");
    my $branch = $self->_getBranch;
 
    if( $self->{'node'} >= @{$branch->[0]} - 1 ) {
@@ -820,8 +827,8 @@ Returns 0 if first node in the branch and 1 otherwise
 
 sub prev {
    my $self = shift;
-   $self->Debug("prev( )");
    $self->_clear;
+   $self->Debug("prev( )");
    if( $self->{'node'} > 0 ) {
       $self->{'node'}--;
       return 1;
@@ -841,8 +848,8 @@ Returns the number of variations on this branch.
 
 sub variations {
    my $self = shift;
-   $self->Debug("variations( )");
    $self->_clear;
+   $self->Debug("variations( )");
    my $branch = $self->_getBranch;
    return scalar @{$branch->[1]};
 }
@@ -861,8 +868,8 @@ Returns 1 on success and 0 on Failure.
 sub gotoVariation {
    my $self = shift;
    my $n = shift;
-   $self->Debug("gotoVariation( $n )");
    $self->_clear;
+   $self->Debug("gotoVariation( $n )");
    my $branch = $self->_getBranch;
    if( $n >= @{$branch->[1]} ) {
       $self->Warn("gotoVariation( $n ): FAILED\t\tThere are only " . scalar( @{$branch->[1]}) . " variations in branch");
@@ -888,8 +895,8 @@ Returns 1 on success or 0 on failure.
 
 sub gotoParent {
    my $self = shift;
-   $self->Debug("gotoParent( )");
    $self->_clear;
+   $self->Debug("gotoParent( )");
    if( @{$self->{'parents'}} > 1 ) {
       pop @{$self->{'parents'}};
       my $branch = $self->_getBranch;
@@ -918,8 +925,8 @@ Returns true on success.
 
 sub addGame {
    my $self = shift;
-   $self->Debug("addGame( )");
    $self->_clear;
+   $self->Debug("addGame( )");
    my $newGame = [[],[]];
    push @{$self->{'collection'}}, $newGame;
    $self->{'game'} = @{$self->{'collection'}} - 1;
@@ -946,8 +953,8 @@ Returns 1 on success and 0 on Failure.
 
 sub addNode {
    my $self = shift;
-   $self->Debug("addNode( )");
    $self->_clear;
+   $self->Debug("addNode( )");
    my $branch = $self->_getBranch;
    my $node = {};
    if( @{$branch->[1]} ) {
@@ -972,8 +979,8 @@ Returns 1 on sucess 0 on Failure.
 
 sub addVariation {
    my $self = shift;
-   $self->Debug("addVariation( )");
    $self->_clear;
+   $self->Debug("addVariation( )");
    my $branch = $self->_getBranch();
    my $tmp_node = $self->{'node'};
    my $var = [[],[]];
@@ -1005,8 +1012,8 @@ Returns 1 on success and 0 on Failure.
 
 sub removeNode {
    my $self = shift;
-   $self->Debug("removeNode( )");
    $self->_clear;
+   $self->Debug("removeNode( )");
    my $branch = $self->{'parents'}->[@{$self->{'parents'}} - 1 ];
    my $node = {};
    if( @{$branch->[1]} ) {
@@ -1033,8 +1040,8 @@ Returns 1 on sucess 0 on Failure.
 sub removeVariation {
    my $self = shift;
    my $n = shift;
-   $self->Debug("removeVariation( $n )");
    $self->_clear;
+   $self->Debug("removeVariation( $n )");
    my $branch = $self->_getBranch();
    if( $n > 0 and $n < @{$branch->[1]} ) {
       splice @{$branch->[1]}, $n, 1;
@@ -1140,10 +1147,10 @@ tags will only be returned if they were set on this node.
 #  returns $arrref on successful get
 sub property {
    my $self = shift;
+   $self->_clear;
    $self->Debug("property( " . join( ", ", @_) .")");
    my $tag = shift;
    my( @values ) = @_;
-   $self->_clear;
    if( not defined $tag ) {
       my @tags;
       #TODO check for errors 
@@ -1188,8 +1195,8 @@ inherited tag if it is actually set on that node.
 
 sub getProperty {
    my $self = shift;
-   $self->Debug("getProperty( " . join( ", ", @_) .")");
    $self->_clear;
+   $self->Debug("getProperty( " . join( ", ", @_) .")");
    my $tag = shift;
    my $isStrict = shift;
 
@@ -1284,8 +1291,8 @@ This is not the same as setting to a empty value.
 
 sub setProperty {
    my $self = shift;
-   $self->Debug("setProperty( " . join( ", ", @_) .")");
    $self->_clear;
+   $self->Debug("setProperty( " . join( ", ", @_) .")");
    my $tag = shift;
    my( @values ) = @_;
    my $isUnSet = (scalar @values == 0) ? 1 : 0; # is unset if empty
@@ -1433,6 +1440,8 @@ sub isComposed {
 
 =head3 isMove
 
+=head3 isEmpty
+
   $self->isPoint($val);
 
 Returns true if $val is a point, move or stone.
@@ -1441,6 +1450,8 @@ The determination for this is if it is blessing class matches
 C<m/^Games::SGF::.*type$/> where type is point, stone, or move.
 So as long as read,write,check methods work with it there is no
 need for these methods to be overwritten.
+
+isEmpty will detect an empty tag.
 
 =cut
 
@@ -1461,6 +1472,11 @@ sub isMove {
    my $val = ref shift;
    return scalar $val =~ m/^Games::SGF::.*move$/;
 }
+sub isEmpty {
+   my $self = shift;
+   my $val = ref shift;
+   return scalar $val =~ m/^Games::SGF::.*empty$/;
+}
 
 =head3 point
 
@@ -1479,6 +1495,10 @@ Will treat the outside format the same as the SGF value format. Thus will use
 the read and write callbacks for point,stone, and move.
 
 If the SGF representation is not what you desire then override these.
+
+=head3 empty
+
+Will return a empty value, which can be tested with isEmpty.
 
 =cut
 
@@ -1508,6 +1528,12 @@ sub move {
    } else {
       return $self->_typeRead(V_MOVE, $_[0]);
    }
+}
+sub empty {
+   my $self = shift;
+   $self->_clear;
+   my $a = "1";
+   return bless \$a, 'Games::SGF::empty';
 }
 
 =head2 Error and Diagnostic Methods 
@@ -1661,9 +1687,9 @@ sub _tagRead {
    # if empty just return empty
    if( $values[0] eq "" ) {
       if( $type == 1 ) {
-         return "";
+         return $self->empty();
       } elsif( $self->_getTagFlags($tag) & VF_EMPTY ) {
-         return "";
+         return $self->empty();
       } elsif( not($type == V_POINT or $type == V_MOVE or $type == V_STONE ) ) {
          $self->Fatal("_tagRead($tag, $isSecond," . join(", ",@values). "): FAILED\t\tEmpty tag found where one should not be.");
          return 0;
@@ -1722,7 +1748,7 @@ sub _typeRead {
       if( $text ) {
          $self->Fatal("_typeRead( $type, '$text' ): FAILED\t\tInvalid NONE: '$text'");
       } else {
-         return "";
+         return $self->empty();
       }
    # game specific
    } elsif( $type == V_POINT ) {
@@ -1773,7 +1799,7 @@ sub _tagCheck {
       $type = $type->[$isSecond ? 1 : 0];
    }
    # if empty and VF_EMPTY return true unless point, move, or stone
-   if( $struct eq "" ) {
+   if( $self->isEmpty($struct) ) {
       if( $type == V_NONE ) {
          return 1;
       } elsif( $self->_getTagFlags($tag) & VF_EMPTY ) {
@@ -1869,7 +1895,7 @@ sub _tagWrite {
       $type = $type->[$isSecond ? 1 : 0];
    }
    # if empty just return empty
-   if( $struct eq "" and ($self->_getTagFlags($tag) & VF_EMPTY 
+   if( $self->isEmpty($struct) and ($self->_getTagFlags($tag) & VF_EMPTY 
             or $type == V_NONE) ) {
       # if still empty it is ment to be empty
       return "";
@@ -2428,6 +2454,10 @@ C<VF_EMPTY | VF_LIST>.
 
 =over
 
+=item VF_NONE
+
+Used to specify that no flags are set.
+
 =item VF_EMPTY
 
 This also's the property to the tag to be empty. For Example MA uses this
@@ -2538,12 +2568,6 @@ if it was not true.
 =head2 Documentation
 
 The Documentation needs to be reviewed for accuracy
-
-=head2 Empty Tags
-
-These may not work as expected.
-
-I will make a $sgf->empty and $sgf->isEmpty($prop) similiar to compose and isCompose.
 
 =head2 Some Errors not handled
 
