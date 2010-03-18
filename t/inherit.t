@@ -47,13 +47,13 @@ sub testNav {
       B => $sgf->move('ab'),
       PM => $pm
    );
-   ok($sgf->gotoVariation(0), "First Branch");
+   ok($sgf->gotoBranch(0), "First Branch");
    tag_eq( $sgf, "First Branch First Node",
       W => $sgf->move('fg'),
       PM => $pm
    );
-   ok($sgf->gotoParent, "Going to Parent");
-   ok($sgf->gotoVariation(1), "Second Branch");
+   ok($sgf->prev, "Going to Parent");
+   ok($sgf->gotoBranch(1), "Second Branch");
    tag_eq( $sgf, "Second Branch First Node",
       W => $sgf->move('ad'),
       PM => 1

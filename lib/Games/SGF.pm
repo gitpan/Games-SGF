@@ -19,12 +19,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.991
+Version 0.992
 
 =cut
 
 
-our $VERSION = 0.991;
+our $VERSION = 0.992;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
@@ -238,7 +238,8 @@ sub new {
    # stores stone, point, move handling subroutines
    $self->{'game'} = undef; 
    $self->{'collection'} = undef; 
-   $self->{'parents'} = undef; 
+   $self->{'parents'} = undef;
+   $self->{'address'} = undef; 
    $self->{'node'} = undef;
 
 
@@ -283,11 +284,11 @@ sub readText {
    $self->Debug("readText( <TEXT> )");
    $self->_read($text);
    if( $self->Fatal ) {
+   $self->Debug("readText( <TEXT> ) FAILED ");
       return 0;
    } else {
       $self->{'game'} = 0; # first branch
-      $self->{'parents'} = [$self->{'collection'}->[0]]; # root branch is root
-      $self->{'node'} = 0; # first node
+      $self->gotoRoot;
    }
    return 1;
 }
@@ -341,6 +342,7 @@ sub writeText {
       }
       $text .= "\n";
    }
+   $self->Debug( "write Text:\t\t$text\n");
    return $text;
 }
 
@@ -399,6 +401,10 @@ The C<$attribute> is from the L</Attribute> List. Defaults to C<A_NONE>.
 sub addTag {
    my $self = shift;
    my $tagname = shift;
+   unless( $tagname =~ /^[a-zA-Z]+$/ ) {
+      $self->Fatal("addTag( $tagname ): FAILED\t\t$tagname is of invalid format should pass /^[a-zA-Z]+\$/" );
+      return 0;
+   }
    $self->_clear;
    $self->Debug("addTag($tagname, " . join( ", ", @_ ) . " )" );
    if( exists $self->{'tags'}->{$tagname} or exists $ff4_properties{$tagname}) {
@@ -439,6 +445,12 @@ sub redefineTag {
       $self->Debug("redefineTag(" . join( ", ", @args ) . " )" );
    }
    my $tagname = shift;
+
+   unless( $tagname =~ /^[a-zA-Z]+$/ ) {
+      $self->Fatal("redefineTag($tagname, " . join( ", ", @_ ) . " )" .
+            ": FAILED\t\t$tagname is of invalid format should pass /^[a-zA-Z]+\$/" );
+      return 0;
+   }
    my $type = shift;
    my $value = shift;
    my $value_flags = shift;
@@ -722,6 +734,120 @@ sub setStoneWrite {
    return 1;
 }
 
+=head3 getTagFlags
+
+  $flags = getTagFlags($tag);
+  if( $flags & VF_LIST ) {
+     # do something about lists
+  }
+
+This will return the flags set on this tag.
+
+=cut
+
+sub getTagFlags {
+   my $self = shift;
+   my $tag = shift;
+   if( exists( $self->{'tags'}->{$tag}) ) {
+      if( $self->{'tags'}->{$tag}->{'value_flags'} ) {
+         return $self->{'tags'}->{$tag}->{'value_flags'};
+      } else {
+         return 0;
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'value_flags'} ) {
+         return $ff4_properties{$tag}->{'value_flags'};
+      } else {
+         return 0;
+      }
+   }
+   # default flags
+   return (VF_EMPTY | VF_LIST); # allow to be empty or list
+}
+
+=head3 getTagType
+
+  $flags = getTagType($tag);
+  if( $flags & T_NONE ) {
+     # do something about T_NONE tags
+  }
+
+This will return the flags set on this tag.
+
+=cut
+
+
+sub getTagType {
+   my $self = shift;
+   my $tag = shift;
+   if( exists( $self->{'tags'}->{$tag}) ) {
+      if( $self->{'tags'}->{$tag}->{'type'} ) {
+         return $self->{'tags'}->{$tag}->{'type'};
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'type'} ) {
+         return $ff4_properties{$tag}->{'type'};
+      }
+   }
+   # default Type
+   return T_NONE; # allow to be anywhere
+}
+
+=head3 getTagAttribute
+
+  $flags = getTagAttribute($tag);
+  if( $flags & A_NONE ) {
+     # do something about about no attributes
+  }
+
+This will return the flags set on this tag.
+
+=cut
+
+
+sub getTagAttribute {
+   my $self = shift;
+   my $tag = shift;
+   if( exists($self->{'tags'}->{$tag}) ) {
+      if( $self->{'tags'}->{$tag}->{'attrib'} ) {
+         return $self->{'tags'}->{$tag}->{'attrib'};
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'attrib'} ) {
+         return $ff4_properties{$tag}->{'attrib'};
+      }
+   }
+   return A_NONE; # don't set inherit
+}
+
+=head3 getTagValueType
+
+  $valuetype = getTagValueType($tag);
+  if( $flags & V_TEXT ) {
+     # do something about text
+  }
+
+This will return the flags set on this tag.
+
+=cut
+
+
+sub getTagValueType {
+   my $self = shift;
+   my $tag = shift;
+   if( exists( $self->{'tags'}->{$tag}) ) {
+      if( $self->{'tags'}->{$tag}->{'value'} ) {
+         return $self->{'tags'}->{$tag}->{'value'};
+      }
+   } elsif( exists( $ff4_properties{$tag}) ) {
+      if( $ff4_properties{$tag}->{'value'} ) {
+         return $ff4_properties{$tag}->{'value'};
+      }
+   }
+   return V_TEXT; # allows and preserves any string
+}
+
+
 =head2 Navigation
 
 =head3 nextGame
@@ -774,6 +900,33 @@ sub prevGame {
    }
 }
 
+=head3 game
+
+  $sgf->game; # returns the game number
+  $sgf->game($number); # sets the game to $number
+
+=cut
+
+sub game {
+   my $self = shift;
+   my $game = shift;
+   $self->_clear;
+   $self->Debug("game( $game )");
+
+   if( defined $game ) {
+      unless($game >= 0 and $game < @{$self->{'collection'}} ) {
+         $self->Warn( "game( $game ): FAILED\t\t$game does not exist");
+         return 0;
+      }
+      $self->{'game'} = $game;
+      $self->gotoRoot;
+      return 1;
+   } else {
+      return scalar @{$self->{'collection'}};
+   }
+}
+
+
 =head3 gotoRoot
 
   $sgf->gotoRoot;
@@ -786,17 +939,19 @@ sub gotoRoot {
    my $self = shift;
    $self->_clear;
    $self->Debug("gotoRoot( )");
-   $self->{'parents'} = [ $self->{'collection'}->[$self->{'game'}] ];
-   $self->{'node'} = 0;
+   #$self->{'parents'} = [ $self->{'collection'}->[$self->{'game'}] ];
+   $self->{'address'} = [$self->{'game'}];
+   $self->{'node'} = $self->{'collection'}->[$self->{'game'}];
 }
 
 =head3 next
 
   $sgf->next;
 
-Moves the node pointer ahead one node.
+Moves the node pointer ahead one node. If there are variations it will move
+down the main tree path.
 
-Returns 0 if it is the last node in the branch, otherwise 1
+Returns 0 if it is the last node, otherwise 1
 
 =cut
 
@@ -804,24 +959,17 @@ sub next {
    my $self = shift;
    $self->_clear;
    $self->Debug("next( )");
-   my $branch = $self->_getBranch;
-
-   if( $self->{'node'} >= @{$branch->[0]} - 1 ) {
-      $self->Warn("next(  ): FAILED\t\tCurrently last node in branch");
-      return 0;
-   } else {
-      $self->{'node'}++;
-      return 1;
-   }
+   return $self->gotoBranch(0);
 }
 
 =head3 prev
 
   $sgf->prev;
 
-Moves the node pointer back one node.
+Moves the node pointer back one node. Will move back out of
+variations.
 
-Returns 0 if first node in the branch and 1 otherwise
+Returns 0 if root node of tree
 
 =cut
 
@@ -829,34 +977,36 @@ sub prev {
    my $self = shift;
    $self->_clear;
    $self->Debug("prev( )");
-   if( $self->{'node'} > 0 ) {
-      $self->{'node'}--;
+   if( $self->{'node'}->{'parent'} ) { # if parent exist
+      $self->{'node'} = $self->{'node'}->{'parent'};
+      pop @{$self->{'address'}};
       return 1;
-   } else {
-      $self->Warn("prev(  ): FAILED\t\tCurrently first node in branch");
+   } else { # you are at the root
+      $self->Warn("prev( ):\t\tYou are at the root");
       return 0;
    }
 }
 
-=head3 variations
+=head3 branches
 
-  $sgf->variations;
+  $sgf->branches;
 
-Returns the number of variations on this branch.
+Returns the number of variations for the next move. If there is only the
+main game path then it will return 1, if there are no more moves left in the
+branch it will return 0.
 
 =cut
 
-sub variations {
+sub branches {
    my $self = shift;
    $self->_clear;
-   $self->Debug("variations( )");
-   my $branch = $self->_getBranch;
-   return scalar @{$branch->[1]};
+   $self->Debug("branches( )");
+   return scalar @{$self->{'node'}->{'branches'}};
 }
 
-=head3 gotoVariation
+=head3 gotoBranch
 
-  $sgf->gotoVariation($n);
+  $sgf->gotoBranch($n);
 
 Goes to the first node of the specified Variation. If it returns 4
 that means that there is variations C<0..3>,
@@ -865,48 +1015,94 @@ Returns 1 on success and 0 on Failure.
 
 =cut
 
-sub gotoVariation {
+sub gotoBranch {
    my $self = shift;
    my $n = shift;
    $self->_clear;
-   $self->Debug("gotoVariation( $n )");
-   my $branch = $self->_getBranch;
-   if( $n >= @{$branch->[1]} ) {
-      $self->Warn("gotoVariation( $n ): FAILED\t\tThere are only " . scalar( @{$branch->[1]}) . " variations in branch");
+   $self->Debug("gotoBranch( $n )");
+   if( not defined $n ) { return 0;}
+   if( $n <  $self->branches and $n >= 0) {
+      $self->{'node'} = $self->{'node'}->{'branches'}->[$n];
+      push @{$self->{'address'}}, $n;
+      return 1;
+   } elsif( $n == 0 ) {
+      $self->Warn("gotoBranch( $n ):\t\tNo more moves");
       return 0;
    } else {
-      push @{$self->{'parents'}}, $branch->[1]->[$n];
-      $self->{'node'} = 0;
-      return 1;
+      $self->Warn("gotoBranch( $n ):\t\tInvalid Branch");
+      return 0;
    }
 }
 
-=head3 gotoParent
+=head3 getAddress
 
-  $sgf->gotoParent;
+  my $address = $sgf->getAddress;
 
-Will move the node pointer to the last node of the parent branch. This will
-fail if you already on the root branch for the current game.
+  # some movement
+  
+  $sgf->goto($address);
 
-Returns 1 on success or 0 on failure.
+This function returns an address of your location in the sgf object. It can then be latter
+recalled by using the goto method.
 
 =cut
 
-
-sub gotoParent {
+sub getAddress {
    my $self = shift;
-   $self->_clear;
-   $self->Debug("gotoParent( )");
-   if( @{$self->{'parents'}} > 1 ) {
-      pop @{$self->{'parents'}};
-      my $branch = $self->_getBranch;
-      $self->{'node'} = @{$branch->[0]} - 1;
-      return 1;
-   } else {
-      $self->Warn("gotoParent(  ): FAILED\t\tCurrently at Parent");
-      return 0;
-   }
+   $self->Debug("getAddress( ):\t(". join( ", ", @{$self->{'address'}}) . ")");
+   return [@{$self->{'address'}}];
 }
+
+=head3 goto
+
+   
+goto will recall a position inside of an sgf object. Use getAddress returns an address.
+
+=cut
+
+sub goto {
+   my $self = shift;
+   $self->Debug("goto( " . join( ", ", @{$_[0]}) . " )");
+   my( @add ) = @{shift @_};
+   $self->game(shift @add);
+
+   for(@add) {
+      $self->gotoBranch($_);
+   }
+   return 1;
+}
+
+###
+#
+#  TODO: add getAddress and goto address
+#        the address could be a sequence of variation numbers
+#        followed by a node number.
+#        [var_num ...] node_num
+
+
+#######
+#
+#  SGF Manipulation needs restructuring so that it is easier to use, and can be
+#     used in conjunction with navigation functions. 
+#
+#
+#     The public functions should be as follows:
+#        addGame
+#        removeGame
+#        addNode
+#        removeNode
+#        removeBranch
+#        
+#     The movement functions should be
+#        nextGame
+#        prevGame
+#        next
+#        prev
+#        getVariations
+#        gotoBranch
+#
+#        movement and manipulation functions should be independant of
+#        internal storage structure.
 
 =head2 SGF Manipulation
 
@@ -919,20 +1115,17 @@ current node pointer will be set to the root node of the new game.
 
 Returns true on success.
 
-
-
 =cut
 
 sub addGame {
    my $self = shift;
    $self->_clear;
    $self->Debug("addGame( )");
-   my $newGame = [[],[]];
+   my $newGame = _newNode();
    push @{$self->{'collection'}}, $newGame;
    $self->{'game'} = @{$self->{'collection'}} - 1;
-   $self->{'parents'} = [$newGame];
-   $self->{'node'} = -1;
-   $self->addNode();
+   $self->{'node'} = $newGame;
+   $self->gotoRoot();
    if( $self->Fatal ) {
       return 0;
    } else {
@@ -944,8 +1137,9 @@ sub addGame {
 
   $sgf->addNode;
 
-Adds node end of the current branch. It will fail if there is
-any variations on this branch.
+Adds a node into the game tree. if there is already a continuation of
+the branch, then it will add a variation at this point. The node pointer
+will be set to the new node.
 
 Returns 1 on success and 0 on Failure.
 
@@ -955,56 +1149,21 @@ sub addNode {
    my $self = shift;
    $self->_clear;
    $self->Debug("addNode( )");
-   my $branch = $self->_getBranch;
-   my $node = {};
-   if( @{$branch->[1]} ) {
-      $self->Fatal("addNode(  ): FAILED\t\tCan not add node, since there are variations.");
-      return undef;
-   }
-   push @{$branch->[0]}, $node;
-   $self->{'node'} = @{$branch->[0]} - 1;
-   return 1;
+   my $node = _newNode($self->{'node'}); # use current node as parent
+   # add new node to branches of current
+   my $variations = $self->branches;
+   $self->{'node'}->{'branches'}->[$variations] = $node;
+   # move to new position
+   return $self->gotoBranch($variations);
 }
 
-=head3 addVariation
-
-  $sgf->addVariation;
-
-Adds a new variation onto this branch. The current branch will be changed to
-this new variation. It will then add the first node for this variation.
-
-Returns 1 on sucess 0 on Failure.
-
-=cut
-
-sub addVariation {
-   my $self = shift;
-   $self->_clear;
-   $self->Debug("addVariation( )");
-   my $branch = $self->_getBranch();
-   my $tmp_node = $self->{'node'};
-   my $var = [[],[]];
-   push @{$branch->[1]}, $var;
-   push @{$self->{'parents'}}, $var;
-   $self->{'node'} = -1; # there are no nodes in the variation currently
-   $self->addNode;
-   if( $self->Fatal ) {
-      # undo what has been done
-      # return to original state
-      pop @{$branch->[1]};
-      pop @{$self->{'parents'}};
-      $self->{'node'} = $tmp_node;
-      return 0;
-   }
-   return 1;
-}
 
 =head3 removeNode
 
   $sgf->removeNode;
 
-Removes last node from the current Branch, will fail if there
-is any variations on this branch
+Removes current node from tree if it has no sub nodes. If removed
+calls C<$sgf->prev> node.
 
 Returns 1 on success and 0 on Failure.
 
@@ -1014,117 +1173,26 @@ sub removeNode {
    my $self = shift;
    $self->_clear;
    $self->Debug("removeNode( )");
-   my $branch = $self->{'parents'}->[@{$self->{'parents'}} - 1 ];
-   my $node = {};
-   if( @{$branch->[1]} ) {
-      $self->Fatal("removeNode(  ): FAILED\t\tCan not remove, since there are variations.");
+   if( @{$self->{'node'}->{'branches'}} ) { # 
+      $self->Warn("removeNode(  ): FAILED\t\tCan not remove, since moves after which need to be removed.");
       return 0;
-   }
-   pop @{$branch->[0]};
-   $self->{'node'} = @{$branch->[0]} - 1;
-   return 1;
-}
-
-=head3 removeVariation
-
-  $sgf->removeVariation($n);
-
-This will remove the C<$n> variation from the branch. If you have 
-variations C<0..4> and ask it to remove variation C<1> then the 
-indexs will be C<0..3>.
-
-Returns 1 on sucess 0 on Failure.
-
-=cut
-
-sub removeVariation {
-   my $self = shift;
-   my $n = shift;
-   $self->_clear;
-   $self->Debug("removeVariation( $n )");
-   my $branch = $self->_getBranch();
-   if( $n > 0 and $n < @{$branch->[1]} ) {
-      splice @{$branch->[1]}, $n, 1;
-      return 1;
    } else {
-      $self->Fatal("removeVariation( $n ): FAILED\t\tThere are only " . (scalar @{$branch->[1]}) . " variations in branch.");
+      # remove current node and move to parent.\
+      # save current node
+      # goto prev
+      # look at branches for saved node and remove
+      my $rem = $self->{'node'};
+      $self->prev;
+      for( my $i = 0; $i < @{$self->{'node'}->{'branches'}};$i++) {
+         if( $rem == $self->{'node'}->{'branches'}->[$i] ) {
+            splice @{$self->{'node'}->{'branches'}}, $i, 1;
+            return 1;
+         }
+      }
+      $self->Fatal("removeNode( ):\t\tLogical failure. Node to be removed Does Not Exist");
       return 0;
    }
 }
-
-=head3 splitBranch
-
-  $sgf->splitBranch($n);
-
-This will split the current branch into 2 branches, so that the last part of
-the branch will be a variation of the first portion. C<$n> will be the first
-node in the next variation.
-
-Your node pointer will be the last node first branch. For Example say the 
-branch you are on has nodes C<0..9> and you want to split it on node C<5>
-will give the first branch having nodes C<0..4> having one variation containing
-nodes C<5..9> and the variations of the original branch. Your node pointer
-will point to node C<4>
-
-This is used for adding a variation of move C<$n>:
-
-  $sgf->splitBranch($n);
-  $sgf->addVariation;
-  # set some node properties
-
-The above code will add a variation on the a node in the middle of a node
-sequence in a branch.
-
-Returns 1 on success and 0 on Failure.
-
-=cut
-
-sub splitBranch {
-   my $self = shift;
-   $self->_clear;
-   my $n = $self->{'node'};
-   $self->Debug("splitBranch( $n )");
-   my $new_branch = [[],[]];
-   my $branch = $self->_getBranch();
-   if( $n > 0 and $n < @{$branch->[0]} ) {
-      $new_branch->[0] = [splice @{$branch->[0]}, $n];
-      $new_branch->[1] = $branch->[1];
-      $branch->[1] = [$new_branch];
-      $self->{'node'} = $n - 1;
-      return 1;
-   } else {
-      $self->Fatal("splitBranch( $n ): FAILED\t\tThere are only " . (scalar @{$branch->[0]}) . " nodes in branch.");
-      return 0;
-   }
-}
-
-=head3 flatten
-
-  $sgf->flatten;
-
-If the current branch has only one variation then moves nodes and variations
-from that one variation into current branch, and removing the old branch.
-
-=cut
-
-sub flatten {
-   my $self = shift;
-   $self->Debug("flatten( )");
-   $self->_clear;
-   if( $self->variations == 1 ) {
-      my $branch = $self->_getBranch();
-      my $tbd = $branch->[1]->[0];
-
-      # moves stuff
-      push @{$branch->[0]}, @{$tbd->[0]};
-      $branch->[1] =  $tbd->[1];
-      return 1;
-   } else {
-      $self->Fatal("flatten(  ): FAILED\t\tThere is more then one variation." );
-      return 0;
-   }
-}
-
 
 =head3 property
 
@@ -1152,20 +1220,9 @@ sub property {
    my $tag = shift;
    my( @values ) = @_;
    if( not defined $tag ) {
-      my @tags;
-      #TODO check for errors 
-      #     move this functionality to a separtate sub
-      my $branch = $self->_getBranch;
-      my $node = $self->_getNode;
-      @tags = keys %$node;
-      foreach my $t ( keys %{$self->{'inherited'}} ) {
-         if( exists $self->{'inherited'}->{$t}->{$branch}->{$self->{'node'}} ) {
-            push @tags, $t;
-         }
-      }
-      return @tags;
-
-   } elsif( @values == 0 ) {
+      # return only tags on this node
+      return keys %{$self->{'node'}->{'tags'}};
+  } elsif( @values == 0 ) {
       #get
       return $self->getProperty($tag);
    } else {
@@ -1199,61 +1256,26 @@ sub getProperty {
    $self->Debug("getProperty( " . join( ", ", @_) .")");
    my $tag = shift;
    my $isStrict = shift;
+   my $attri = $self->getTagAttribute($tag);
 
-   # error checking
-   my $branch = $self->_getBranch;
-   my $node = $self->_getNode;
-   my $attri = $self->_getTagAttribute($tag);
-
-   if( $attri == A_INHERIT ) {
-      # use 'inherited hash'
-      my $closest = undef;
-      if( not exists $self->{'inherited'}->{$tag} ) {
-         $self->Warn( "getProperty( $tag ): FAILED\t\tInherited Tag($tag) not set anywhere" );
-         return 0;
-      }
-      foreach(@{$self->{'parents'}}) {
-         if( exists $self->{'inherited'}->{$tag}->{$_} ) {
-            $closest = $_;
+   if( $attri == A_INHERIT and not $isStrict) {
+      my $node = $self->{'node'};
+      {
+         if( exists $node->{'tags'}->{$tag} ) {
+            return $node->{'tags'}->{$tag};
+         } elsif($node->{'parent'}) {
+            $node = $node->{'parent'};
+            redo;
          }
       }
-      if( not defined $closest ) {
-         # none found
-         $self->Warn( "getProperty( $tag ): FAILED\t\tInherited Tag($tag) not Found" );
-         return 0;
-      } elsif( $closest == $branch )  {
-         # find greatest node less then or equal to $self->{'node'}
-         my $n;
-         for( $n = $self->{'node'}; $n >= 0; $n--) {
-            if( exists $self->{'inherited'}->{$tag}->{$closest}->{$n} ) {
-               if( $isStrict and not $n == $node ) {
-                  # if strict and not current node move on
-                  next;
-               }
-               return $self->{'inherited'}->{$tag}->{$closest}->{$n};
-            }
-         }
-         $self->Warn( "getProperty( $tag ): FAILED\t\tInherited Tag($tag) not Found in Current Branch" );
-         return 0;
-      } else {
-         # find greastest node
-         my $max = -1;
-         foreach( keys %{$self->{'inherited'}->{$tag}->{$closest}} ) {
-            $max = $_ if $_ > $max;
-         }
-         if( not $isStrict and $max >= 0 ) {
-            return $self->{'inherited'}->{$tag}->{$closest}->{$max};
-         } else {
-            $self->Warn( "getProperty( $tag ): FAILED\t\tInherited Tag($tag) not Found" );
-            return 0;
-         }
-      }
-   } else {
-      if( exists $node->{$tag} ) {
-         return $node->{$tag};
+      $self->Warn( "getProperty( $tag ): FAILED\t\tInherited $tag is not set" );
+      return 0;
+  } else {
+      if( exists $self->{'node'}->{'tags'}->{$tag} ) {
+         return $self->{'node'}->{'tags'}->{$tag};
       } else {
          # non existent $tag
-         $self->Warn( "getProperty( $tag ): FAILED\t\tNonexistent $tag" );
+         $self->Warn( "getProperty( $tag ): FAILED\t\t$tag is not set" );
          return 0;
       }
    }
@@ -1297,15 +1319,24 @@ sub setProperty {
    my( @values ) = @_;
    my $isUnSet = (scalar @values == 0) ? 1 : 0; # is unset if empty
 
-   my $branch = $self->_getBranch;
-   my $node = $self->_getNode;
-
-
-   my $ttype = $self->_getTagType($tag);
-   my $vtype = $self->_getTagValueType($tag);
-   my $flags = $self->_getTagFlags($tag);
-   my $attri = $self->_getTagAttribute($tag);
+   my $ttype = $self->getTagType($tag);
+   my $vtype = $self->getTagValueType($tag);
+   my $flags = $self->getTagFlags($tag);
+   my $attri = $self->getTagAttribute($tag);
    my $isComposable = $self->_maybeComposed($tag);
+
+
+   if( $isUnSet ) {
+      if( exists $self->{'node'}->{'tags'}->{$tag} ) {
+         delete $self->{'node'}->{'tags'}->{$tag};
+         return 1;
+      } else {
+         $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCan't unset inherited $tag when not set at this node\n");
+         return 0;
+      }
+   }
+
+
    # reasons to not set the property
    # set list values only if VF_LIST
    # TODO: VF_LIST && VF_EMPTY????
@@ -1315,17 +1346,16 @@ sub setProperty {
       return 0;
    }
    # can set T_ROOT if you are at root
-   if( $ttype == T_ROOT and (@{$self->{'parents'}} != 1 or $self->{'node'} != 0) ) {
-      $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCan't set T_ROOT($tag) when not at root( Parents: "
-                  . scalar(@{$self->{'parents'}}) . 
-                  " Node: " . $self->{'node'});
+
+   if( $ttype == T_ROOT and (0 != $self->{'node'}->{'parent'}) ) {
+      $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCan't set T_ROOT($tag) when not at root");
       return 0;
    }
    # don't set T_MOVE or T_SETUP if other is present
    #  ASSUMPTION: No Inherited property is a T_MOVE or T_SETUP
    my $tnode = undef;
-   foreach( keys %$node ) {
-      my $tag_type = $self->_getTagType($_);
+   foreach( keys %{$self->{'node'}->{'tags'}} ) {
+      my $tag_type = $self->getTagType($_);
       if( $tnode ) {
          if( ($tnode == T_SETUP and $tag_type == T_MOVE)
                or ($tnode == T_MOVE and $tag_type == T_SETUP) ) {
@@ -1340,53 +1370,21 @@ sub setProperty {
    if(not  $isUnSet ) {
       foreach( @values ) {
          # check compose
-         if( $self->isComposed($_) ) {
-            unless( $isComposable ) {
-               $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tFound Composed value when $tag does not allow it");
-               return 0;
-            }
-            unless($self->_tagCheck($tag,0, $_)){
-               $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCheck Failed");
-               return 0;
-            }
-         } else {
-            unless( $self->_tagCheck($tag,0,$_) ) {
-               # check failed
-               $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCheck Failed");
-               return 0;
-            }
+         if( $self->isComposed($_) and not $isComposable ) {
+            $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tFound Composed value when $tag does not allow it");
+            return 0;
+         }
+         unless($self->_tagCheck($tag,0, $_)){
+            $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCheck Failed");
+            return 0;
          }
       }
-   }
-   # can't unset inherited if unset
-   if( $attri == A_INHERIT and $isUnSet 
-         and not exists $self->{'inherited'}->{$tag}->{$branch}->{$self->{'node'}} ) {
-      $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCan't unset inherited $tag when not set at this node\n");
-      return 0;
-   }
-   # can't unset tag if unset
-   if( $attri != A_INHERIT and $isUnSet 
-         and not exists $node->{$tag} ) {
-      $self->Warn("setProperty( \"$tag\", \"". join('", "',@values) . "\" ): FAILED\t\tCan't unset non existant tag\n");
-      return 0;
    }
    # If I got here then it is safe to do some damage
 
    # if inherit use other tree
 
-   if( $attri == A_INHERIT ) {
-      if( $isUnSet ) {
-         delete $self->{'inherited'}->{$tag}->{$branch}->{$self->{'node'}};
-      } else {
-         #set
-         $self->{'inherited'}->{$tag}->{$branch}->{$self->{'node'}} = [@values];
-      }
-   } elsif( $isUnSet ) {
-      delete $node->{$tag};
-   } else {
-      $node->{$tag} = [@values];
-   }
-
+   $self->{'node'}->{'tags'}->{$tag} = [@values];
    return 1;
 }
 
@@ -1593,10 +1591,11 @@ sub Fatal {
    }
    push @{$self->{'FatalErrors'}}, @_; # save messages
 
+   my $str = "FATAL:\t".join( "\nFATAL:\t\t",@_);
    if( ref $self->{'Fatal'} eq 'CODE') {
-      return $self->{'Fatal'}->(@_);
+      return $self->{'Fatal'}->($str);
    } elsif( $self->{'Fatal'} ) {
-      croak("FATAL:\t",join( "\n\t",@_));
+      croak($str);
    }
 }
 
@@ -1607,10 +1606,11 @@ sub Warn {
    }
    push @{$self->{'WarnErrors'}}, @_; # save messages
 
+   my $str = "WARN:\t" . join( "\nWARN:\t\t",@_);
    if( ref $self->{'Warn'} eq 'CODE') {
-      return $self->{'Warn'}->(@_);
+      return $self->{'Warn'}->($str);
    } elsif( $self->{'Warn'} ) {
-      carp("WARN:\t",join( "\n\t",@_));
+      carp($str);
    }
 }
 
@@ -1621,10 +1621,11 @@ sub Debug {
    }
    push @{$self->{'DebugErrors'}}, @_; # save messages
 
+   my $str = "Debug:\t " . join( "\nDebug:\t\t",@_);
    if( ref $self->{'Debug'} eq 'CODE') {
-      return $self->{'Debug'}->(@_);
+      return $self->{'Debug'}->($str);
    } elsif( $self->{'Debug'} ) {
-      carp("Debug:\t ",join( "\n\t",@_));
+      carp($str);
    }
 }
 
@@ -1641,6 +1642,26 @@ sub Clear {
 #
 #######################################
 
+# removeVariation
+#
+#  $sgf->removeVariation($n);
+#
+# This will remove the C<$n> variation from the branch. If you have 
+# variations C<0..4> and ask it to remove variation C<1> then the 
+# indexs will be C<0..3>.
+#
+# Returns 1 on sucess 0 on Failure.
+
+sub _newNode {
+   my $parent = shift;
+   $parent ||= 0;
+   return { 
+      'parent' => $parent, 
+      'branches' => [], 
+      'tags' => {}
+   };
+}
+
 # if the parents caller is not from Games::SGF* then call clear
 sub _clear {
    my $self = shift;
@@ -1651,18 +1672,6 @@ sub _clear {
       $self->Clear;
       return 1;
    }
-}
-
-
-#TODO think of error cases
-sub _getBranch {
-   my $self = shift;
-   return $self->{'parents'}->[@{$self->{'parents'}} - 1 ];
-}
-sub _getNode {
-   my $self = shift;
-   my $branch = $self->_getBranch();
-   return $branch->[0]->[$self->{'node'}];
 }
 
 
@@ -1679,7 +1688,7 @@ sub _tagRead {
       $values[1] = $self->_tagRead($tag,1,$values[1]);
       return $self->compose(@values);
    }
-   my $type = $self->_getTagValueType($tag);
+   my $type = $self->getTagValueType($tag);
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
    }
@@ -1688,7 +1697,7 @@ sub _tagRead {
    if( $values[0] eq "" ) {
       if( $type == 1 ) {
          return $self->empty();
-      } elsif( $self->_getTagFlags($tag) & VF_EMPTY ) {
+      } elsif( $self->getTagFlags($tag) & VF_EMPTY ) {
          return $self->empty();
       } elsif( not($type == V_POINT or $type == V_MOVE or $type == V_STONE ) ) {
          $self->Fatal("_tagRead($tag, $isSecond," . join(", ",@values). "): FAILED\t\tEmpty tag found where one should not be.");
@@ -1704,7 +1713,7 @@ sub _typeRead {
    my $type = shift;
    my $text = shift;
 
-   $self->Debug( "_typeRead($type,$text)\n");
+   $self->Debug( "_typeRead($type,$text)");
    #return $text unless $type;
    if($type == V_COLOR) {
       if( $text eq "B" ) {
@@ -1794,7 +1803,7 @@ sub _tagCheck {
       return $val[0] && $val[1];
    }
 
-   my $type = $self->_getTagValueType($tag);
+   my $type = $self->getTagValueType($tag);
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
    }
@@ -1802,7 +1811,7 @@ sub _tagCheck {
    if( $self->isEmpty($struct) ) {
       if( $type == V_NONE ) {
          return 1;
-      } elsif( $self->_getTagFlags($tag) & VF_EMPTY ) {
+      } elsif( $self->getTagFlags($tag) & VF_EMPTY ) {
          # return empty if not move stone or point
          return 1;
       } elsif(not( $type == V_POINT or $type == V_MOVE or $type == V_STONE ) ) {
@@ -1890,12 +1899,12 @@ sub _tagWrite {
       return join ':', @val;
    }
 
-   my $type = $self->_getTagValueType($tag);
+   my $type = $self->getTagValueType($tag);
    if( ref $type eq 'ARRAY' ) {
       $type = $type->[$isSecond ? 1 : 0];
    }
    # if empty just return empty
-   if( $self->isEmpty($struct) and ($self->_getTagFlags($tag) & VF_EMPTY 
+   if( $self->isEmpty($struct) and ($self->getTagFlags($tag) & VF_EMPTY 
             or $type == V_NONE) ) {
       # if still empty it is ment to be empty
       return "";
@@ -1963,73 +1972,12 @@ sub _typeWrite {
    # return $struct;
 }
 
-sub _getTagFlags {
-   my $self = shift;
-   my $tag = shift;
-   if( exists( $self->{'tags'}->{$tag}) ) {
-      if( $self->{'tags'}->{$tag}->{'value_flags'} ) {
-         return $self->{'tags'}->{$tag}->{'value_flags'};
-      } else {
-         return 0;
-      }
-   } elsif( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'value_flags'} ) {
-         return $ff4_properties{$tag}->{'value_flags'};
-      } else {
-         return 0;
-      }
-   }
-   # default flags
-   return (VF_EMPTY | VF_LIST); # allow to be empty or list
-}
-sub _getTagType {
-   my $self = shift;
-   my $tag = shift;
-   if( exists( $self->{'tags'}->{$tag}) ) {
-      if( $self->{'tags'}->{$tag}->{'type'} ) {
-         return $self->{'tags'}->{$tag}->{'type'};
-      }
-   } elsif( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'type'} ) {
-         return $ff4_properties{$tag}->{'type'};
-      }
-   }
-   # default Type
-   return T_NONE; # allow to be anywhere
-}
-sub _getTagAttribute {
-   my $self = shift;
-   my $tag = shift;
-   if( exists($self->{'tags'}->{$tag}) ) {
-      if( $self->{'tags'}->{$tag}->{'attrib'} ) {
-         return $self->{'tags'}->{$tag}->{'attrib'};
-      }
-   } elsif( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'attrib'} ) {
-         return $ff4_properties{$tag}->{'attrib'};
-      }
-   }
-   return A_NONE; # don't set inherit
-}
-sub _getTagValueType {
-   my $self = shift;
-   my $tag = shift;
-   if( exists( $self->{'tags'}->{$tag}) ) {
-      if( $self->{'tags'}->{$tag}->{'value'} ) {
-         return $self->{'tags'}->{$tag}->{'value'};
-      }
-   } elsif( exists( $ff4_properties{$tag}) ) {
-      if( $ff4_properties{$tag}->{'value'} ) {
-         return $ff4_properties{$tag}->{'value'};
-      }
-   }
-   return V_TEXT; # allows and preserves any string
-}
+
 sub _maybeComposed {
    my $self = shift;
    my $prop = shift;
-   if( ref $self->_getTagValueType($prop) eq 'ARRAY'
-         or $self->_getTagFlags($prop) & VF_OPT_COMPOSE ) {
+   if( ref $self->getTagValueType($prop) eq 'ARRAY'
+         or $self->getTagFlags($prop) & VF_OPT_COMPOSE ) {
       return 1;
    } else {
       return 0;
@@ -2039,7 +1987,7 @@ sub _isSimpleText {
    my $self = shift;
    my $prop = shift;
    my $part = shift;
-   my $type = $self->_getTagValueType($prop);
+   my $type = $self->getTagValueType($prop);
    if( $self->_maybeComposed($prop) ) {
       if( ref $type eq 'ARRAY' ) {
          if( $type->[$part] == V_SIMPLE_TEXT ) {
@@ -2060,7 +2008,7 @@ sub _isText {
    my $self = shift;
    my $prop = shift;
    my $part = shift;
-   my $type = $self->_getTagValueType($prop);
+   my $type = $self->getTagValueType($prop);
    if( $self->_maybeComposed($prop) ) {
       if( ref $type eq 'ARRAY' ) {
          if( $type->[$part] == V_TEXT ) {
@@ -2090,6 +2038,7 @@ sub _read {
    my $propI = 0;
    my $lastName = '';
    my( @values ) = (); # composed entries are array refs
+   my( @variations ) = ();
    # Parse flags
    my $inValue = 0;
    my $isEscape = 0;
@@ -2113,7 +2062,7 @@ sub _read {
             unless( $inValue ) {
                $self->Fatal("_read(<SGF>): FAILED\t\t Mismatched ']'");
             }
-            $self->Debug("_read( <SGF> ): Adding Property: '$propertyName' "
+            $self->Debug("_read( <SGF> ):\t\t\tAdding Property: '$propertyName' "
                ."=> '$propertyValue[$propI]'");
    
             my $val =  $self->_tagRead($propertyName, 0, @propertyValue);
@@ -2182,12 +2131,13 @@ sub _read {
             @values = ();
          }
          if($inTree) {
-            # $self->Message('DEBUG', "Starting GameTree\n");
-            if( not $self->addVariation ) {
+            $self->Debug("_read(<SGF>)\t\t\t#### Starting GameTree ####");
+            push @variations, $self->getAddress;
+            if( not $self->addNode ) {
                return undef;
             }
          } else {
-            #$self->Message('DEBUG', "Adding GameTree to Collection\n");
+            $self->Debug("_read(<SGF>)\t\t\t#### Adding game to collection ####");
             $inTree = 1;
             if( not $self->addGame ) {
                return undef;
@@ -2196,14 +2146,16 @@ sub _read {
          $isStart = 1;
       } elsif( $char eq ')' ) {
          if( @values ) {
-            # GETSTRICT
             my $old = $self->getProperty($lastName, 1);
             @values = (@$old, @values) if $old;
             return undef if not $self->setProperty($lastName, @values); 
             @values = ();
          }
-         if( not $self->gotoParent ) {
+         if( not @variations ) {
             $inTree = 0;
+         } else {
+            $self->Debug("_read(<SGF>)\t\t\t#### Ending Game Tree ####");
+            $self->goto(pop @variations);
          }
       } elsif( $char eq ';' ) {
          # $self->Message('DEBUG',"Adding Node\n");
@@ -2291,30 +2243,39 @@ sub _write_tags {
 
 sub _write {
    my $self = shift;
-   my $branch = shift;
+   my $node = shift;
+   return "" unless $node;
    my $text = "(";
-   # foreach node ";", tags
-   for( my $i = 0; $i < @{$branch->[0]}; $i++ ) {
-      $text .= ";"; # starts the node
-
-      # write tags in main tree
-      $text .= $self->_write_tags($branch->[0]->[$i]);
-
-      # write tags from inherited tree
-      my( %inherit );
-      # find the tags
-      foreach my $tag ( keys %{$self->{'inherited'}}) {
-         if( exists $self->{'inherited'}->{$tag}->{$branch}->{$i} ) {
-            $inherit{$tag} = $self->{'inherited'}->{$tag}->{$branch}->{$i};
-         }
+   
+   # write all linear nodes
+   # drops the leafs you need to handle 0 branchs
+   #
+   # if branches = 0 you are at a leave out and done
+   #
+   # if branches = 1 out and move to next node
+   #
+   # if branches > 1 out and recurse
+   #
+   #
+   {
+      if( $node  ) {
+         $text .= ";";
+         $text .= $self->_write_tags($node->{'tags'});
+      } else {
+         last;
       }
-      $text .= $self->_write_tags(\%inherit);
-   }
-
-   # write variations
-   for( my $i = 0; $i < @{$branch->[1]}; $i++ ) {
-      $text .= $self->_write($branch->[1]->[$i]);
-      #$text .= "\n"; # white space for readablity
+      if( not $node->{'branches'} ) {
+         last;
+      } elsif( @{$node->{'branches'}} == 1 ) {
+         $node = $node->{'branches'}->[0];
+         redo;
+      } else {
+         # recurse for each branch
+         foreach(@{$node->{'branches'}}) {
+            $text .= $self->_write($_);
+         }
+         last;
+      }
    }
 
    $text .= ")"; # finish branch

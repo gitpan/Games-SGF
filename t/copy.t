@@ -1,4 +1,4 @@
-use Test::More tests => 186;                      # last test to print
+use Test::More tests => 190;                      # last test to print
 use Games::SGF;
 use Data::Dumper;
 use warnings;
@@ -22,30 +22,29 @@ AB[dp][ep][eq]AW[do][eo][fp][fq]PL[B]
 SGF
 
 # create Parsers
-my $parser1 = new Games::SGF(Warn => 0, Debug => 0);
-#my $parser2 = new Games::SGF(Warn => 0, Debug => 0);
-
-ok( $parser1, "Create Parser Object 1" );
-#ok( $parser2, "Create Parser Object 2" );
+my $parser1 = new Games::SGF(Warn => 0,Fatal => 0, Debug => 0);
+ok( $parser1, "Create Parser Object 0" );
 
 # add tags to parsers
 ok( $parser1->addTag('KM', $parser1->T_GAME_INFO, $parser1->V_REAL ), "addTag");
-#ok( $parser2->addTag('KM', $parser2->T_GAME_INFO, $parser2->V_REAL ), "addTag");
 
 my $parser2 = $parser1->clone;
 ok( $parser2, "Create copy of Object 1");
 
 # read in $sgf_in
 ok( $parser1->readText($sgf_in), "Read Initial SGF Text");
-# write it back out
+
 ok($parser1->writeFile('test.sgf'), "Write the parsed Tree");
 
 # read it in the second parser
 ok($parser2->readFile('test.sgf'), "Read Second SGF Text");
+
 #clean up the write test
 unlink 'test.sgf' or die "Failed to unlink 'test.sgf':$!";
+
 test_nav( $parser1, "parse1");
 test_nav( $parser2, "parse2");
+
 sub test_nav {
    my $sgf = shift;
    my $name = shift;
@@ -81,9 +80,9 @@ sub test_nav {
    tag_eq( $sgf, $name,
       PL => $sgf->C_WHITE);
 
-   my ($num_var) = $sgf->variations;
-   ok($num_var == 2, "number of variations");
-   ok($sgf->gotoVariation(0), "1 - variation");
+   my ($num_var) = $sgf->branches;
+   ok($num_var == 2, "number of branches $num_var");
+   ok($sgf->gotoBranch(0), "1 - branch");
    tag_eq( $sgf, "1-$name",
       W => $sgf->move("hp"));
 
@@ -91,8 +90,9 @@ sub test_nav {
    tag_eq( $sgf, "1-$name",
       B => $sgf->move("io"),
       GB => $sgf->DBL_NORM);
-   ok($sgf->gotoParent, $name);
-   ok($sgf->gotoVariation(1), "2-variation");
+   ok($sgf->prev, $name);
+   ok($sgf->prev, $name);
+   ok($sgf->gotoBranch(1), "2-branch");
    tag_eq( $sgf, "2-$name",
       W => $sgf->move("hq"));
 

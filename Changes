@@ -105,3 +105,9 @@ Revision history for Games-SGF
       Clean module, setting permissions, and removing uneeded files
       Added $sgf->empty and $sgf->isEmpty, and incorperated them into the core 
       Made sure _clear comes before the Debug statements
+
+0.992
+      10/11/09
+      Changed some documentation in Games::SGF::Util
+      SGF.pm now checks for invalid tags need to pass /^[a-zA-Z]+$/
+      restructuring navigation, and tree manipulation code

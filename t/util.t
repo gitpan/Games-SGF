@@ -1,11 +1,11 @@
-use Test::More tests => 34;
+use Test::More tests => 35;
 use Games::SGF;
 use Games::SGF::Util;
 use Data::Dumper;
 require "t/sgf_test.pl";
 
 my $sgf_in = <<SGF;
-(;B[aa]C[Keep]
+(;B[aa]C[Keep]PW[Somebody]
  ;W[ab]C[Some]
  (;B[ac]C[body])
  (;W[dd]C[Keep])
@@ -14,13 +14,26 @@ SGF
 my $u = new Games::SGF::Util();
 ok( not( $u), "Correctly failed to create util object");
 
-my $sgf = Games::SGF->new();
+my $sgf = Games::SGF->new(Debug => 0);
 
 ok( $sgf->readText($sgf_in), "Read File");
+
+# test gameInfo
+
 nav( $sgf, "Keep", "Some","body","Keep");
 
 my $util = Games::SGF::Util->new($sgf);
 $u = Games::SGF::Util->new($sgf);
+
+my(@games) = $util->gameInfo;
+if((@games == 1 and $games[0]->{'PW'}->[0] eq "Somebody")) {
+  pass( "Game Util");
+} else {
+   fail( "Game Util");
+   diag( "returned ${@games} games.\n expected 'Somebody' got " 
+      . $games[0]->{'PW'}->[0] );
+}
+
 $util->filter( "C" , sub { $_[0] =~ s/ee//g; return $_[0];} );
 nav( $util->sgf(), "Kp", "Some","body","Kp");
 
@@ -46,14 +59,14 @@ sub nav {
       W => $sgf->move("ab"),
       C => shift @c
    );
-   $sgf->gotoVariation(0);
+   $sgf->gotoBranch(0);
 
    tag_eq( $sgf, "Third Node",
       B => $sgf->move("ac"),
       C => shift @c
    );
-   $sgf->gotoParent;
-   $sgf->gotoVariation(1);
+   $sgf->prev;
+   $sgf->gotoBranch(1);
 
    tag_eq( $sgf, "Forth Node",
       W => $sgf->move("dd"),

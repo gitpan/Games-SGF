@@ -1,4 +1,4 @@
-use Test::More tests => 33;                      # last test to print
+use Test::More tests => 28;                      # last test to print
 use Games::SGF;
 use Data::Dumper;
 require 't/sgf_test.pl';
@@ -27,11 +27,7 @@ ok($parser->next, "moving up a node");
    diag($parser->Fatal) if $parser->Fatal;
 ok($parser->next, "moving up a node");
    diag($parser->Fatal) if $parser->Fatal;
-ok($parser->next, "moving up a node");
-   diag($parser->Fatal) if $parser->Fatal;
-ok($parser->splitBranch, "splitting");
-   diag($parser->Fatal) if $parser->Fatal;
-ok($parser->addVariation, "adding variation");
+ok($parser->addNode, "splitting");
    diag($parser->Fatal) if $parser->Fatal;
 ok($parser->property("W", $parser->move("ab")), "adding prop");
    diag($parser->Fatal) if $parser->Fatal;
@@ -57,16 +53,12 @@ sub test_nav {
    tag_eq( $sgf, $name, B => $sgf->move("aa") );
 
    if($passTwo) {
-      ok($sgf->gotoVariation(1), "goto new var");
+      ok($sgf->gotoBranch(1), "goto new var");
       tag_eq( $sgf, "new-$name", W => $sgf->move("ab") );
       ok($sgf->removeNode, "remove node");
-      ok($sgf->gotoParent(), "going back to mainline");
-      ok($sgf->removeVariation(1), "removing added variation");
-      ok($sgf->flatten, "flatten out variation");
    }
       ok($sgf->next, "next2 $name");
       diag($sgf->Fatal) if $sgf->Fatal;
-print Dumper $parser;
    tag_eq( $sgf, $name, AW => [$sgf->stone("ab"),$sgf->stone("ac")] );
 
    ok($sgf->next, "next3 $name");

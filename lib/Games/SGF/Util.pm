@@ -11,11 +11,11 @@ Games::SGF::Util - Utility pack for Games::SGF objects
 
 =head1 VERSION
 
-Version 0.991
+Version 0.992
 
 =cut
 
-our $VERSION = 0.991;
+our $VERSION = 0.992;
 
 
 =head1 SYNOPSIS
@@ -33,6 +33,10 @@ Perhaps a little code snippet.
 =head1 DISCRIPTION
 
 This is a collection of useful methods for manipulating a Games::SGF object.
+
+All Util methods in this module will not call any game movement methods. This
+means in order to work with files with multiple games you must move to the
+game of choice then pass it into a util object.
 
 =head1 METHODS
 
@@ -99,26 +103,14 @@ sub touch {
    my $self = shift;
    my $callback = shift;
    my $isRec = shift; # set if a recursive call
+   $isRec ||= 0;
    my $sgf = $$self;
    $sgf->gotoRoot unless $isRec;
-   
-   # if this is first run 
-   if( not $isRec ) {
-      1 while $sgf->gotoParent;
-      1 while $sgf->prev;
-   }
-
-   # touch all nodes in this branch
-   {
-      &$callback($sgf);
-      redo if $sgf->next;
-   }
-
-   # touch all variations
-   for( my $i = 0; $i < $sgf->variations; $i++ ) {
-      $sgf->gotoVariation($i);
-      $self->touch( $callback, 1 );
-      $sgf->gotoParent;
+   &$callback($sgf);
+   for( my $i = 0; $i < $sgf->branches; $i++) {
+      $sgf->gotoBranch($i);
+      $self->touch($callback, 1);
+      $sgf->prev;
    }
 }
 
@@ -146,7 +138,7 @@ sub filter {
    my $tag = shift;
    my $callback = shift;
 
-   $self->touch(
+   return $self->touch(
       sub {
          my $sgf = shift;
          my $values = $sgf->property($tag);
@@ -164,6 +156,58 @@ sub filter {
          }
       }
    );         
+}
+
+=head2 gameInfo
+
+  my(@games) = $util->gameInfo;
+  foreach my $game (@games) {
+      print "New Game\n";
+      foreach my $tag (keys %$game) {
+         print "\t$tag -> $game->{$tag}\n";
+      }
+  }
+
+Will return the game-info tags for all games represented in the current
+game tree. The return order is the closest to the root, and then the closest
+to the main line branch.
+
+UNWRITTEN
+
+=cut
+
+sub gameInfo {
+   my $self = shift;
+   my $isRec = shift; # set if a recursive call
+   my $sgf = $$self;
+   my( @games );
+   # if this is first run 
+   $sgf->gotoRoot unless $isRec;
+   
+   # touch all nodes in this branch
+   {
+      # check for games and add to @games
+      my(@tags) = $sgf->property;
+      my $game = {};
+      foreach my $t (@tags) {
+         if( $sgf->getTagType($t) & $sgf->T_GAME_INFO ) {
+            $game->{$t} = $sgf->getProperty($t);
+         }
+      }
+      if( keys %$game ) {
+         $games[@games] = $game;
+      }
+      redo if $sgf->next;
+   }
+
+   # touch all variations
+   for( my $i = 0; $i < $sgf->branches; $i++ ) {
+      #add game info of branch onto our list
+      $sgf->gotoBranch($i);
+      push @games, $self->gameInfo( 1 );
+      $sgf->gotoParent;
+   }
+   return @games;
 }
 
 =head2 sgf

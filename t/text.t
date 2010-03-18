@@ -20,4 +20,3 @@ tag_eq( $sgf, "Root Node",
    C => "SomeText
 THan may be on multiple lines"
 );
-#print Dumper $sgf;
