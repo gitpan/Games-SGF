@@ -7,7 +7,7 @@ my $build = Module::Build->new(
    create_makefile_pl => 'traditional',
    requires => {
       'enum'         => '1.016',
-      'Clone::PP'    => '1.02'
+#      'Clone::PP'    => '1.02'
    },
    build_requires => {
       'Test::More'   => 0.70,

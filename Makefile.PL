@@ -11,7 +11,6 @@ WriteMakefile
                            'Test::More' => '0.7',
                            'Scalar::Util' => '1.14',
                            'Pod::Coverage' => '0.19',
-                           'Clone::PP' => '1.02',
                            'Test::Pod::Coverage' => '1.08',
                            'Data::Dumper' => '2.121',
                            'enum' => '1.016',

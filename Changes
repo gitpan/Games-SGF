@@ -111,3 +111,8 @@ Revision history for Games-SGF
       Changed some documentation in Games::SGF::Util
       SGF.pm now checks for invalid tags need to pass /^[a-zA-Z]+$/
       restructuring navigation, and tree manipulation code
+
+0.993
+      04/28/10
+      Games::SGF::Util touch method fixed for deep recursion
+      Remove clone feature, deep recursion problem

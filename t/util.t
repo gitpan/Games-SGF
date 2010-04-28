@@ -8,13 +8,13 @@ my $sgf_in = <<SGF;
 (;B[aa]C[Keep]PW[Somebody]
  ;W[ab]C[Some]
  (;B[ac]C[body])
- (;W[dd]C[Keep])
+ (;W[dd]C[Keep];B[dd])
 )
 SGF
 my $u = new Games::SGF::Util();
 ok( not( $u), "Correctly failed to create util object");
 
-my $sgf = Games::SGF->new(Debug => 0);
+my $sgf = Games::SGF->new(Debug => 0, Warn => 0);
 
 ok( $sgf->readText($sgf_in), "Read File");
 

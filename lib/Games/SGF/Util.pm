@@ -11,11 +11,11 @@ Games::SGF::Util - Utility pack for Games::SGF objects
 
 =head1 VERSION
 
-Version 0.992
+Version 0.993
 
 =cut
 
-our $VERSION = 0.992;
+our $VERSION = 0.993;
 
 
 =head1 SYNOPSIS
@@ -54,7 +54,7 @@ sub new {
    my $class = ref $inv || $inv;
    my $sgf = shift;
    if($sgf) {
-      $sgf = $sgf->clone(); # So we are not working with the actual sgf file
+#      $sgf = $sgf->clone(); # So we are not working with the actual sgf file
    } else {
       return undef;
    }
@@ -102,15 +102,22 @@ to undefined behavior. The safe methods to use are:
 sub touch {
    my $self = shift;
    my $callback = shift;
-   my $isRec = shift; # set if a recursive call
-   $isRec ||= 0;
    my $sgf = $$self;
-   $sgf->gotoRoot unless $isRec;
-   &$callback($sgf);
-   for( my $i = 0; $i < $sgf->branches; $i++) {
-      $sgf->gotoBranch($i);
-      $self->touch($callback, 1);
-      $sgf->prev;
+   my( @branches ) = (-1); # Stores the branch stack
+   $sgf->gotoRoot;
+   {
+      my $last = pop @branches;
+      &$callback($sgf) if $last == -1; # callback on current node
+
+      if( $last < $sgf->branches and $sgf->gotoBranch(++$last)) {
+         push @branches, $last,-1;
+      } elsif(@branches > 0 ) {
+         $sgf->prev;
+         pop @branches;
+      } else {
+         last;
+      }
+      redo;
    }
 }
 
@@ -224,11 +231,11 @@ sub sgf {
    my $self = shift;
    my $sgf = shift;
    if($sgf) {
-      $$self = $sgf->clone();
+      $$self = $sgf;#->clone();
       return $sgf;
    }
    $sgf = $$self;
-   return $sgf->clone();
+   return $sgf;#->clone();
 }
 1;
 __END__

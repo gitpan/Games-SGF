@@ -11,11 +11,11 @@ Games::SGF::Go - A Go Specific SGF Parser
 
 =head1 VERSION
 
-Version 0.992
+Version 0.993
 
 =cut
 our( @ISA ) = ('Games::SGF');
-our $VERSION = 0.992;
+our $VERSION = 0.993;
 
 =head1 SYNOPSIS
 

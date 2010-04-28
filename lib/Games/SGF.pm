@@ -11,7 +11,7 @@ use enum qw(
          :T_=1 MOVE SETUP ROOT GAME_INFO NONE
          :A_=1 NONE INHERIT
          );
-use Clone::PP;
+#use Clone::PP;
 
 =head1 NAME
 
@@ -19,12 +19,12 @@ Games::SGF - A general SGF parser
 
 =head1 VERSION
 
-Version 0.992
+Version 0.993
 
 =cut
 
 
-our $VERSION = 0.992;
+our $VERSION = 0.993;
 my( %ff4_properties ) = (
    # general move properties
    'B' => { 'type' => T_MOVE, 'value' => V_MOVE },
